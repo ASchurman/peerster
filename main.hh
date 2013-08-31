@@ -14,11 +14,11 @@ public:
 	ChatDialog();
 
 public slots:
-	void gotReturnPressed();
+	void gotTextChanged();
 
 private:
 	QTextEdit *textview;
-	QLineEdit *textline;
+	QTextEdit *messageEdit;
 };
 
 class NetSocket : public QUdpSocket
