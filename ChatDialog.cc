@@ -4,6 +4,8 @@
 #include "ChatDialog.hh"
 #include "NetSocket.hh"
 
+ChatDialog* GlobalChatDialog;
+
 ChatDialog::ChatDialog()
 {
     setWindowTitle("Peerster");
@@ -31,11 +33,7 @@ ChatDialog::ChatDialog()
     // Register a callback on the m_pMessageBox's textChanged signal
     // so that we can send the message entered by the user.
     connect(m_pMessageBox, SIGNAL(textChanged()),
-        this, SLOT(gotTextChanged()));
-
-    // Register a callback on GlobalSocket's readyRead signal so that we can
-    // append the received message to m_pChatView
-    connect(&GlobalSocket, SIGNAL(readyRead()), this, SLOT(gotReadyRead()));
+            this, SLOT(gotTextChanged()));
 }
 
 void ChatDialog::gotTextChanged()
@@ -49,24 +47,14 @@ void ChatDialog::gotTextChanged()
         // strip the terminating '\n'
         message.truncate(message.size() - 1);
 
-        GlobalSocket.send(message);
+        GlobalSocket->send(message);
 
         // Clear the m_pMessageBox to get ready for the next input message.
         m_pMessageBox->clear();
     }
 }
 
-void ChatDialog::gotReadyRead()
+void ChatDialog::printMessage(QString& message)
 {
-    QString* message = GlobalSocket.receive();
-
-    if (message)
-    {
-        m_pChatView->append(*message);
-        delete message;
-    }
-    else
-    {
-        qDebug() << "Failed to receive datagram";
-    }
+    m_pChatView->append(message);
 }

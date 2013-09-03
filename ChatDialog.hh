@@ -13,11 +13,13 @@ public:
 
 public slots:
     void gotTextChanged();
-    void gotReadyRead();
+    void printMessage(QString& message);
 
 private:
     QTextEdit* m_pChatView;
     QTextEdit* m_pMessageBox;
 };
+
+extern ChatDialog* GlobalChatDialog;
 
 #endif // CHATDIALOG_HH

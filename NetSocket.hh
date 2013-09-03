@@ -15,15 +15,16 @@ public:
 
     void send(QString& message);
 
-    // Receives a chat message. Should only be called when the readyRead signal
-    // is fired. The returned QString* should be deleted by the caller.
-    // Returns NULL in error.
-    QString* receive();
+public slots:
+    void gotReadyRead();
+
+signals:
+    void messageReceived(QString& message);
 
 private:
     int m_myPortMin, m_myPortMax;
 };
 
-extern NetSocket GlobalSocket;
+extern NetSocket* GlobalSocket;
 
 #endif // NETSOCKET_HH

@@ -4,7 +4,7 @@
 
 #include "NetSocket.hh"
 
-NetSocket GlobalSocket;
+NetSocket* GlobalSocket;
 
 #define CHAT_TEXT "ChatText"
 
@@ -19,6 +19,8 @@ NetSocket::NetSocket()
     // We use the range from 32768 to 49151 for this purpose.
     m_myPortMin = 32768 + (getuid() % 4096)*4;
     m_myPortMax = m_myPortMin + 3;
+
+    connect(this, SIGNAL(readyRead()), this, SLOT(gotReadyRead()));
 }
 
 bool NetSocket::bind()
@@ -54,7 +56,7 @@ void NetSocket::send(QString& message)
     }
 }
 
-QString* NetSocket::receive()
+void NetSocket::gotReadyRead()
 {
     // TODO: How do we know if deserialization fails? In that case, we should
     // return NULL before allocating a QString.
@@ -75,15 +77,7 @@ QString* NetSocket::receive()
         if (varMap.contains(CHAT_TEXT))
         {
             QString* pMessage = new QString(varMap[CHAT_TEXT].toString());
-            return pMessage;
+            emit messageReceived(*pMessage);
         }
-        else
-        {
-            return NULL;
-        }
-    }
-    else
-    {
-        return NULL;
     }
 }
