@@ -1,9 +1,8 @@
-#include <unistd.h>
-
 #include <QVBoxLayout>
 #include <QDebug>
 
 #include "ChatDialog.hh"
+#include "NetSocket.hh"
 
 ChatDialog::ChatDialog()
 {
@@ -11,47 +10,63 @@ ChatDialog::ChatDialog()
 
     // Read-only text box where we display messages from everyone.
     // This widget expands both horizontally and vertically.
-    textview = new QTextEdit(this);
-    textview->setReadOnly(true);
+    m_pChatView = new QTextEdit(this);
+    m_pChatView->setReadOnly(true);
 
     // Small text-entry box the user can enter messages.
-    messageEdit = new QTextEdit(this);
-    messageEdit->setFocus();
-    QFontMetrics font(messageEdit->font());
+    m_pMessageBox = new QTextEdit(this);
+    m_pMessageBox->setFocus();
+    QFontMetrics font(m_pMessageBox->font());
     int rowHeight = font.lineSpacing();
-    messageEdit->setFixedHeight(3 * rowHeight + 5);
+    m_pMessageBox->setFixedHeight(3 * rowHeight + 5);
 
     // Lay out the widgets to appear in the main window.
     // For Qt widget and layout concepts see:
     // http://doc.qt.nokia.com/4.7-snapshot/widgets-and-layouts.html
     QVBoxLayout *layout = new QVBoxLayout();
-    layout->addWidget(textview);
-    layout->addWidget(messageEdit);
+    layout->addWidget(m_pChatView);
+    layout->addWidget(m_pMessageBox);
     setLayout(layout);
 
-    // Register a callback on the messageEdit's textChanged signal
+    // Register a callback on the m_pMessageBox's textChanged signal
     // so that we can send the message entered by the user.
-    connect(messageEdit, SIGNAL(textChanged()),
+    connect(m_pMessageBox, SIGNAL(textChanged()),
         this, SLOT(gotTextChanged()));
+
+    // Register a callback on GlobalSocket's readyRead signal so that we can
+    // append the received message to m_pChatView
+    connect(&GlobalSocket, SIGNAL(readyRead()), this, SLOT(gotReadyRead()));
 }
 
 void ChatDialog::gotTextChanged()
 {
-    QString message = messageEdit->toPlainText();
+    QString message = m_pMessageBox->toPlainText();
 
-    // if the messageEdit's text ends in '\n', then the user just hit return,
+    // if the m_pMessageBox's text ends in '\n', then the user just hit return,
     // meaning we should send the message
     if (message.endsWith(QChar('\n')))
     {
         // strip the terminating '\n'
         message.truncate(message.size() - 1);
 
-        // Initially, just echo the string locally.
-        // Insert some networking code here...
-        qDebug() << "FIX: send message to other peers: " << message;
-        textview->append(message);
+        GlobalSocket.send(message);
 
-        // Clear the messageEdit to get ready for the next input message.
-        messageEdit->clear();
+        // Clear the m_pMessageBox to get ready for the next input message.
+        m_pMessageBox->clear();
+    }
+}
+
+void ChatDialog::gotReadyRead()
+{
+    QString* message = GlobalSocket.receive();
+
+    if (message)
+    {
+        m_pChatView->append(*message);
+        delete message;
+    }
+    else
+    {
+        qDebug() << "Failed to receive datagram";
     }
 }

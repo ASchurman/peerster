@@ -13,10 +13,11 @@ public:
 
 public slots:
     void gotTextChanged();
+    void gotReadyRead();
 
 private:
-    QTextEdit *textview;
-    QTextEdit *messageEdit;
+    QTextEdit* m_pChatView;
+    QTextEdit* m_pMessageBox;
 };
 
 #endif // CHATDIALOG_HH

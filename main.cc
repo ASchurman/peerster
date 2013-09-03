@@ -1,7 +1,4 @@
 
-#include <unistd.h>
-
-#include <QVBoxLayout>
 #include <QApplication>
 #include <QDebug>
 
@@ -18,9 +15,10 @@ int main(int argc, char **argv)
 	dialog.show();
 
 	// Create a UDP network socket
-	NetSocket sock;
-	if (!sock.bind())
+	if (!GlobalSocket.bind())
+	{
 		exit(1);
+	}
 
 	// Enter the Qt main loop; everything else is event driven
 	return app.exec();
