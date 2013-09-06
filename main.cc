@@ -41,3 +41,4 @@ int main(int argc, char **argv)
     // Enter the Qt main loop; everything else is event driven
     return app.exec();
 }
+
