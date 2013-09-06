@@ -5,6 +5,7 @@
 #include <QVariantMap>
 #include <QMap>
 #include <QList>
+#include <QTimer>
 
 #include "Common.hh"
 #include "Monger.hh"
@@ -22,12 +23,12 @@ public:
     void inputMessage(QString& message);
 
     void sendToRandNeighbor(MessageInfo& mesInf);
-    void sendStatusToRandNeighbor();
     void sendMessage(MessageInfo& mesInf, QHostAddress addresss, int port);
     void sendStatus(QHostAddress address, int port);
 
 public slots:
     void gotReadyRead();
+    void sendStatusToRandNeighbor();
 
 signals:
     void messageReceived(MessageInfo& mesInf);
@@ -47,6 +48,8 @@ private:
     int m_myPortMin, m_myPortMax, m_myPort;
     QString m_hostName;
     int m_seqNo;
+
+    QTimer* m_timer;
 };
 
 extern NetSocket* GlobalSocket;

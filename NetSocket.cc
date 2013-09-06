@@ -28,6 +28,10 @@ NetSocket::NetSocket()
     m_hostName.setNum(rand());
 
     connect(this, SIGNAL(readyRead()), this, SLOT(gotReadyRead()));
+
+    m_timer = new QTimer(this);
+    connect(m_timer, SIGNAL(timeout()), this, SLOT(sendStatusToRandNeighbor()));
+    m_timer->start(10000);
 }
 
 bool NetSocket::bind()
