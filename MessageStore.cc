@@ -25,7 +25,7 @@ int MessageStore::getStatusDiff(QVariantMap& remoteStatus, MessageInfo& mesInfOu
 {
     QVariantMap* status = getStatus();
 
-    // True if the remote host has messages that we dont' have.
+    // True if the remote host has messages that we don't have.
     bool remoteHasExtra = false;
 
     QList<QString> hosts = status->keys();
@@ -50,9 +50,10 @@ int MessageStore::getStatusDiff(QVariantMap& remoteStatus, MessageInfo& mesInfOu
                 {
                     mesInfOut.m_seqNo = seqNos[j];
                     mesInfOut.m_body = messes[j];
+                    return 1;
                 }
             }
-            return 1;
+            qDebug() << "Our status is constructed incorrectly!";
         }
         else if (remoteNeed > localNeed)
         {
