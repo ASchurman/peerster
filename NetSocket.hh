@@ -26,9 +26,13 @@ public:
     void sendMessage(MessageInfo& mesInf, QHostAddress addresss, int port);
     void sendStatus(QHostAddress address, int port);
 
+    void addNeighbor(AddrInfo addrInfo);
+    void addNeighbor(QString& hostPortStr);
+
 public slots:
     void gotReadyRead();
     void sendStatusToRandNeighbor();
+    void lookedUpDns(const QHostInfo& host);
 
 signals:
     void messageReceived(MessageInfo& mesInf);
@@ -36,14 +40,13 @@ signals:
 private:
     void sendMap(QVariantMap& varMap, QHostAddress address, int port);
 
-    // finds the provided AddrInfo in m_sessionAddrs and returns a pointer to
+    // finds the provided AddrInfo in m_neighborAddrs and returns a pointer to
     // it, else returns NULL
-    Monger* findSession(AddrInfo addrInfo);
+    Monger* findNeighbor(AddrInfo addrInfo);
 
-    QList<AddrInfo> m_neighbors;
-
-    QList<AddrInfo> m_sessionAddrs;
-    QList<Monger*> m_sessionMongers;
+    QList<AddrInfo> m_neighborAddrs;
+    QList<Monger*> m_neighbors;
+    QList<AddrInfo> m_pendingAddrs;
 
     int m_myPortMin, m_myPortMax, m_myPort;
     QString m_hostName;

@@ -36,44 +36,110 @@ NetSocket::NetSocket()
 
 bool NetSocket::bind()
 {
+    bool bound = false;
+
     // Try to bind to each of the range m_myPortMin..m_myPortMax in turn.
     for (int p = m_myPortMin; p <= m_myPortMax; p++)
     {
-        if (QUdpSocket::bind(p))
+        if (!bound && QUdpSocket::bind(p))
         {
             m_myPort = p;
             qDebug() << "bound to UDP port " << m_myPort;
-
-            if (p - 1 >= m_myPortMin)
-            {
-                m_neighbors.append(AddrInfo(QHostAddress(QHostAddress::LocalHost),
-                                            p - 1));
-            }
-            if (p + 1 <= m_myPortMax)
-            {
-                m_neighbors.append(AddrInfo(QHostAddress(QHostAddress::LocalHost),
-                                            p + 1));
-            }
-
-            return true;
+            bound = true;
+        }
+        else
+        {
+            addNeighbor(AddrInfo(QHostAddress(QHostAddress::LocalHost), p));
         }
     }
 
-    qDebug() << "Oops, no ports in my default range " << m_myPortMin
-        << "-" << m_myPortMax << " available";
-    return false;
+    if (bound)
+    {
+        return true;
+    }
+    else
+    {
+        qDebug() << "Oops, no ports in my default range " << m_myPortMin
+            << "-" << m_myPortMax << " available";
+        return false;
+    }
 }
 
-Monger* NetSocket::findSession(AddrInfo addrInfo)
+Monger* NetSocket::findNeighbor(AddrInfo addrInfo)
 {
-    for (int i = 0; i < m_sessionAddrs.count(); i++)
+    for (int i = 0; i < m_neighborAddrs.count(); i++)
     {
-        if (m_sessionAddrs[i] == addrInfo)
+        if (m_neighborAddrs[i] == addrInfo)
         {
-            return m_sessionMongers[i];
+            return m_neighbors[i];
         }
     }
     return NULL;
+}
+
+void NetSocket::addNeighbor(AddrInfo addrInfo)
+{
+    if (addrInfo.m_isDns)
+    {
+        m_pendingAddrs.append(addrInfo);
+        QHostInfo::lookupHost(addrInfo.m_dns, this,
+                              SLOT(lookedUpDns(QHostInfo)));
+
+    }
+    else
+    {
+        m_neighborAddrs.append(addrInfo);
+        m_neighbors.append(new Monger(addrInfo));
+
+        qDebug() << "Added Neighbor " << addrInfo.m_addr.toString() << ":"
+            << addrInfo.m_port;
+    }
+}
+
+void NetSocket::addNeighbor(QString& hostPortStr)
+{
+    // TODO error handling on string
+    QString portStr = hostPortStr.section(':', 1, 1);
+    int port = portStr.toInt();
+    QString hostStr = hostPortStr.section(':', 0, 0);
+
+    QHostAddress addr(hostStr);
+    if (addr == QHostAddress::Null)
+    {
+        // user provided dns name
+        addNeighbor(AddrInfo(hostStr, port));
+    }
+    else
+    {
+        // user provided IP address
+        addNeighbor(AddrInfo(addr, port));
+    }
+}
+
+void NetSocket::lookedUpDns(const QHostInfo& host)
+{
+    bool success = host.error() == QHostInfo::NoError;
+
+    if (!success)
+    {
+        qDebug() << "Lookup failed:" << host.errorString();
+    }
+
+    for (int i = 0; i < m_pendingAddrs.count(); i++)
+    {
+        if (m_pendingAddrs[i].m_dns == host.hostName())
+        {
+            if (success)
+            {
+                addNeighbor(AddrInfo(host.addresses().first(),
+                                     m_pendingAddrs[i].m_port));
+
+                qDebug() << "Added Neighbor " << host.hostName() << ":"
+                    << m_pendingAddrs[i].m_port;
+            }
+            m_pendingAddrs.removeAt(i);
+        }
+    }
 }
 
 void NetSocket::gotReadyRead()
@@ -110,12 +176,11 @@ void NetSocket::gotReadyRead()
                                varMap[ORIGIN].toString(),
                                varMap[SEQ_NO].toInt());
 
-            if (!findSession(addrInfo))
+            if (!findNeighbor(addrInfo))
             {
-                m_sessionAddrs.append(addrInfo);
-                m_sessionMongers.append(new Monger(addrInfo));
+                addNeighbor(addrInfo);
             }
-            findSession(addrInfo)->receiveMessage(mesInf);
+            findNeighbor(addrInfo)->receiveMessage(mesInf);
         }
         else if (varMap.count() == 1
                  && varMap.contains(WANT))
@@ -123,12 +188,11 @@ void NetSocket::gotReadyRead()
             // received a status message!
             QVariantMap remoteStatus(varMap[WANT].toMap());
 
-            if (!findSession(addrInfo))
+            if (!findNeighbor(addrInfo))
             {
-                m_sessionAddrs.append(addrInfo);
-                m_sessionMongers.append(new Monger(addrInfo));
+                addNeighbor(addrInfo);
             }
-            findSession(addrInfo)->receiveStatus(remoteStatus);
+            findNeighbor(addrInfo)->receiveStatus(remoteStatus);
         }
     }
 }
@@ -148,16 +212,16 @@ void NetSocket::inputMessage(QString& message)
 
 void NetSocket::sendToRandNeighbor(MessageInfo& mesInf)
 {
-    int i = rand() % m_neighbors.count();
-    AddrInfo addrInfo = m_neighbors[i];
+    int i = rand() % m_neighborAddrs.count();
+    AddrInfo addrInfo = m_neighborAddrs[i];
 
     sendMessage(mesInf, addrInfo.m_addr, addrInfo.m_port);
 }
 
 void NetSocket::sendStatusToRandNeighbor()
 {
-    int i = rand() % m_neighbors.count();
-    AddrInfo addrInfo = m_neighbors[i];
+    int i = rand() % m_neighborAddrs.count();
+    AddrInfo addrInfo = m_neighborAddrs[i];
 
     sendStatus(addrInfo.m_addr, addrInfo.m_port);
 }
@@ -172,12 +236,11 @@ void NetSocket::sendMessage(MessageInfo& mesInf,
     sendMap(varMap, address, port);
 
     AddrInfo addrInfo(address, port);
-    if (!findSession(addrInfo))
+    if (!findNeighbor(addrInfo))
     {
-        m_sessionAddrs.append(addrInfo);
-        m_sessionMongers.append(new Monger(addrInfo));
+        addNeighbor(addrInfo);
     }
-    findSession(addrInfo)->startTimer();
+    findNeighbor(addrInfo)->startTimer();
 }
 
 void NetSocket::sendStatus(QHostAddress address, int port)

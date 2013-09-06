@@ -3,6 +3,7 @@
 
 #include <QString>
 #include <QHostAddress>
+#include <QHostInfo>
 
 class MessageInfo
 {
@@ -18,9 +19,11 @@ public:
 class AddrInfo
 {
 public:
-    AddrInfo() { }
+    AddrInfo() : m_isDns(false) { }
     AddrInfo(QHostAddress addr, int port)
-        : m_addr(addr), m_port(port) { }
+        : m_isDns(false), m_addr(addr), m_port(port) { }
+    AddrInfo(QString& dns, int port)
+        : m_isDns(true), m_dns(dns), m_port(port) { }
 
     bool operator==(AddrInfo addrInfo)
     {
@@ -33,6 +36,9 @@ public:
             return false;
         }
     }
+
+    bool m_isDns;
+    QString m_dns;
 
     QHostAddress m_addr;
     int m_port;

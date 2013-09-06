@@ -2,6 +2,7 @@
 #define CHATDIALOG_HH
 
 #include <QDialog>
+#include <QLineEdit>
 #include <QTextEdit>
 
 #include "Common.hh"
@@ -16,10 +17,13 @@ public:
 public slots:
     void gotTextChanged();
     void printMessage(MessageInfo& mesInf);
+    void processNeighborLine();
 
 private:
     QTextEdit* m_pChatView;
     QTextEdit* m_pMessageBox;
+
+    QLineEdit* m_pNeighbor;
 };
 
 extern ChatDialog* GlobalChatDialog;

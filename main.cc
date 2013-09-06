@@ -32,6 +32,12 @@ int main(int argc, char **argv)
     QObject::connect(GlobalMessages, SIGNAL(newMessage(MessageInfo&)),
                      GlobalChatDialog, SLOT(printMessage(MessageInfo&)));
 
+    QStringList args = QCoreApplication::arguments();
+    for (int i = 1; i < args.count(); i++)
+    {
+        GlobalSocket->addNeighbor(args[i]);
+    }
+
     // Enter the Qt main loop; everything else is event driven
     return app.exec();
 }
