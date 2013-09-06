@@ -4,6 +4,8 @@
 #include <QDialog>
 #include <QTextEdit>
 
+#include "Common.hh"
+
 class ChatDialog : public QDialog
 {
     Q_OBJECT
@@ -13,7 +15,7 @@ public:
 
 public slots:
     void gotTextChanged();
-    void printMessage(QString& message);
+    void printMessage(MessageInfo& mesInf);
 
 private:
     QTextEdit* m_pChatView;

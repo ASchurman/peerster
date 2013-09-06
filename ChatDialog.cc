@@ -47,14 +47,14 @@ void ChatDialog::gotTextChanged()
         // strip the terminating '\n'
         message.truncate(message.size() - 1);
 
-        GlobalSocket->send(message);
+        GlobalSocket->inputMessage(message);
 
         // Clear the m_pMessageBox to get ready for the next input message.
         m_pMessageBox->clear();
     }
 }
 
-void ChatDialog::printMessage(QString& message)
+void ChatDialog::printMessage(MessageInfo& mesInf)
 {
-    m_pChatView->append(message);
+    m_pChatView->append(mesInf.m_body);
 }

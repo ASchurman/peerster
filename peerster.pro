@@ -11,8 +11,16 @@ QT += network
 # Input
 SOURCES += main.cc
 
+HEADERS += Common.hh
+
 HEADERS += Netsocket.hh
 SOURCES += NetSocket.cc
 
 HEADERS += ChatDialog.hh
 SOURCES += ChatDialog.cc
+
+HEADERS += MessageStore.hh
+SOURCES += MessageStore.cc
+
+HEADERS += Monger.hh
+SOURCES += Monger.cc

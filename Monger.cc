@@ -1,0 +1,71 @@
+#include "Monger.hh"
+#include "NetSocket.hh"
+#include "MessageStore.hh"
+
+Monger::Monger()
+{
+    setupTimer();
+}
+
+Monger::Monger(AddrInfo addrInfo)
+{
+    m_addrInfo = addrInfo;
+    setupTimer();
+}
+
+void Monger::setupTimer()
+{
+    m_pTimer = new QTimer(this);
+    m_pTimer->setSingleShot(true);
+    m_pTimer->setInterval(2000);
+    connect(m_pTimer, SIGNAL(timeout()), this, SLOT(timeout()));
+}
+
+void Monger::startTimer()
+{
+    m_pTimer->start();
+}
+
+void Monger::timeout()
+{
+    // Doesn't do anything yet. Might do something in a later lab.
+}
+
+void Monger::receiveMessage(MessageInfo mesInf)
+{
+    if (GlobalMessages->recordMessage(mesInf))
+    {
+        // this is a new rumor
+        GlobalSocket->sendToRandNeighbor(mesInf);
+    }
+
+    // now reply with status
+    GlobalSocket->sendStatus(m_addrInfo.m_addr, m_addrInfo.m_port);
+}
+
+void Monger::receiveStatus(QVariantMap remoteStatus)
+{
+    MessageInfo mesInf;
+
+    int statusDiff = GlobalMessages->getStatusDiff(remoteStatus, mesInf);
+
+    if (statusDiff < 0)
+    {
+        // remote host has messages we don't, so send status message
+        GlobalSocket->sendStatus(m_addrInfo.m_addr, m_addrInfo.m_port);
+    }
+    else if (statusDiff > 0)
+    {
+        // we have messages the remote host doesn't, so send one
+        GlobalSocket->sendMessage(mesInf, m_addrInfo.m_addr, m_addrInfo.m_port);
+    }
+    else // statusDiff == 0
+    {
+        // we have the same set of messages
+        int resend = rand() % 2;
+        if (resend)
+        {
+            GlobalSocket->sendStatusToRandNeighbor();
+        }
+    }
+}
