@@ -13,9 +13,19 @@ QVariantMap* MessageStore::getStatus()
     {
         QMap<int, QString> hostMap = m_messages[hosts[i]];
         QList<int> mesNums = hostMap.keys();
-        int lastMes = mesNums.last() + 1;
-        QVariant lastMesVariant(lastMes);
-        pStatus->insert(hosts[i], lastMesVariant);
+
+        // figure out the first seqno for this host that we need
+        int firstNeed = 1;
+        for (int j = 0; j < mesNums.count(); j++)
+        {
+            if (mesNums[j] == firstNeed)
+            {
+                firstNeed++;
+            }
+        }
+        QVariant firstNeedVariant(firstNeed);
+        
+        pStatus->insert(hosts[i], firstNeedVariant);
     }
 
     return pStatus;
