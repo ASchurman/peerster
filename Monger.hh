@@ -9,6 +9,7 @@
 
 #include "Common.hh"
 
+// Contains the per-neighbor state
 class Monger : public QObject
 {
     Q_OBJECT
@@ -24,6 +25,10 @@ public:
     void startTimer();
 
     AddrInfo m_addrInfo;
+
+    // last message sent to this peer; resent to a random neighbor if this
+    // neighbor times out
+    MessageInfo m_lastSent;
 
 public slots:
     void timeout();

@@ -16,6 +16,7 @@ int main(int argc, char **argv)
     // Initialize Qt toolkit
     QApplication app(argc,argv);
 
+    // Create some global objects
     GlobalSocket = new NetSocket();
     GlobalChatDialog = new ChatDialog();
     GlobalMessages = new MessageStore();
@@ -29,9 +30,13 @@ int main(int argc, char **argv)
         exit(1);
     }
 
+    // Connect the signal from GlobalMessages indicating that we received a new
+    // message for the first time to the slot in GlobalChatDialog that prints
+    // a new message
     QObject::connect(GlobalMessages, SIGNAL(newMessage(MessageInfo&)),
                      GlobalChatDialog, SLOT(printMessage(MessageInfo&)));
 
+    // Parse command line arguments to add neighbors
     QStringList args = QCoreApplication::arguments();
     for (int i = 1; i < args.count(); i++)
     {

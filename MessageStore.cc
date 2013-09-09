@@ -43,8 +43,13 @@ int MessageStore::getStatusDiff(QVariantMap& remoteStatus, MessageInfo& mesInfOu
     {
         QString hostName = hosts[i];
 
+        // true if the neighbor doesn't have any messages from this host
         bool remoteMissing = !remoteStatus.contains(hostName);
+
+        // the first seqno that the neighbor needs from this host
         int remoteNeed = remoteMissing ? 1 : remoteStatus[hostName].toInt();
+
+        // the first seqno that we need from this host
         int localNeed = (*status)[hostName].toInt();
 
         if (remoteMissing || remoteNeed < localNeed)
@@ -56,13 +61,17 @@ int MessageStore::getStatusDiff(QVariantMap& remoteStatus, MessageInfo& mesInfOu
             QList<QString> messes = m_messages[hostName].values();
             for (int j = 0; j < seqNos.count(); j++)
             {
-                if (remoteMissing || seqNos[j] >= remoteNeed)
+                if (remoteMissing || seqNos[j] == remoteNeed)
                 {
                     mesInfOut.m_seqNo = seqNos[j];
                     mesInfOut.m_body = messes[j];
                     return 1;
                 }
             }
+
+            // We determined based on statuses that we have messages that the
+            // neighbor doesn't have, but we were unable to find one such
+            // specific message.
             qDebug() << "Our status is constructed incorrectly!";
         }
         else if (remoteNeed > localNeed)

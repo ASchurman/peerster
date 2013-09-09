@@ -22,6 +22,7 @@ ChatDialog::ChatDialog()
     int rowHeight = font.lineSpacing();
     m_pMessageBox->setFixedHeight(3 * rowHeight + 5);
 
+    // a line in which the user can add new neighbors
     m_pNeighbor = new QLineEdit(this);
 
     // Lay out the widgets to appear in the main window.
@@ -38,6 +39,8 @@ ChatDialog::ChatDialog()
     connect(m_pMessageBox, SIGNAL(textChanged()),
             this, SLOT(gotTextChanged()));
 
+    // When return is pressed in m_pNeighbor, we call processNeighborLine to
+    // register the new neighbor
     connect(m_pNeighbor, SIGNAL(returnPressed()),
             this, SLOT(processNeighborLine()));
 }

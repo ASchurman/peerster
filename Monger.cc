@@ -1,3 +1,5 @@
+#include <QDebug>
+
 #include "Monger.hh"
 #include "NetSocket.hh"
 #include "MessageStore.hh"
@@ -28,7 +30,8 @@ void Monger::startTimer()
 
 void Monger::timeout()
 {
-    // Doesn't do anything yet. Might do something in a later lab.
+    qDebug() << "Timeout";
+    GlobalSocket->sendToRandNeighbor(m_lastSent);
 }
 
 void Monger::receiveMessage(MessageInfo mesInf)
@@ -46,6 +49,7 @@ void Monger::receiveMessage(MessageInfo mesInf)
 void Monger::receiveStatus(QVariantMap remoteStatus)
 {
     MessageInfo mesInf;
+    m_pTimer->stop();
 
     int statusDiff = GlobalMessages->getStatusDiff(remoteStatus, mesInf);
 

@@ -10,6 +10,7 @@
 #include "Common.hh"
 #include "Monger.hh"
 
+// Handles the network communication of peerster
 class NetSocket : public QUdpSocket
 {
     Q_OBJECT

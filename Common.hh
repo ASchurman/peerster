@@ -37,9 +37,11 @@ public:
         }
     }
 
+    // True if this AddrInfo has host name in m_dns instead of an IP address in
+    // m_addr. If false, m_addr is defined and m_dns may or may not be defined.
     bool m_isDns;
-    QString m_dns;
 
+    QString m_dns;
     QHostAddress m_addr;
     int m_port;
 };

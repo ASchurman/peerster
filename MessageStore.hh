@@ -40,6 +40,8 @@ public:
     bool recordMessage(MessageInfo& mesInf);
 
 signals:
+    // Indicates that a new message has been seen for the first time. mesInf
+    // is that message.
     void newMessage(MessageInfo& mesInf);
 
 private:

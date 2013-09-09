@@ -98,21 +98,29 @@ void NetSocket::addNeighbor(AddrInfo addrInfo)
 
 void NetSocket::addNeighbor(QString& hostPortStr)
 {
-    // TODO error handling on string
-    QString portStr = hostPortStr.section(':', 1, 1);
-    int port = portStr.toInt();
-    QString hostStr = hostPortStr.section(':', 0, 0);
+    if (hostPortStr.count(':') == 1)
+    {
+        QString portStr = hostPortStr.section(':', 1, 1);
+        int port = portStr.toInt();
 
-    QHostAddress addr(hostStr);
-    if (addr == QHostAddress::Null)
-    {
-        // user provided dns name
-        addNeighbor(AddrInfo(hostStr, port));
-    }
-    else
-    {
-        // user provided IP address
-        addNeighbor(AddrInfo(addr, port));
+        // port 0 is reserved and should not be used for UDP traffic, so if
+        // we see port 0, we can assume that portStr failed to be parsed as an
+        // int.
+        if (port == 0) return;
+
+        QString hostStr = hostPortStr.section(':', 0, 0);
+
+        QHostAddress addr(hostStr);
+        if (addr == QHostAddress::Null)
+        {
+            // user provided dns name
+            addNeighbor(AddrInfo(hostStr, port));
+        }
+        else
+        {
+            // user provided IP address
+            addNeighbor(AddrInfo(addr, port));
+        }
     }
 }
 
@@ -144,8 +152,6 @@ void NetSocket::lookedUpDns(const QHostInfo& host)
 
 void NetSocket::gotReadyRead()
 {
-    // TODO: How do we know if deserialization fails?
-
     qint64 datagramSize = pendingDatagramSize();
 
     if (datagramSize > 0)
@@ -240,6 +246,7 @@ void NetSocket::sendMessage(MessageInfo& mesInf,
     {
         addNeighbor(addrInfo);
     }
+    findNeighbor(addrInfo)->m_lastSent = mesInf;
     findNeighbor(addrInfo)->startTimer();
 }
 
