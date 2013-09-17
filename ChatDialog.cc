@@ -65,7 +65,10 @@ void ChatDialog::gotTextChanged()
 
 void ChatDialog::printMessage(MessageInfo& mesInf)
 {
-    m_pChatView->append(mesInf.m_body);
+    if (!mesInf.m_isRoute)
+    {
+        m_pChatView->append(mesInf.m_body);
+    }
 }
 
 void ChatDialog::processNeighborLine()

@@ -24,3 +24,6 @@ SOURCES += MessageStore.cc
 
 HEADERS += Monger.hh
 SOURCES += Monger.cc
+
+HEADERS += RouteTable.hh
+SOURCES += RouteTable.cc

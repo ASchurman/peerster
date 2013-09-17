@@ -35,6 +35,9 @@ public slots:
     void sendStatusToRandNeighbor();
     void lookedUpDns(const QHostInfo& host);
 
+    // sends a route rumor message to a random neighbor
+    void sendRandRouteRumor();
+
 signals:
     void messageReceived(MessageInfo& mesInf);
 
@@ -53,7 +56,11 @@ private:
     QString m_hostName;
     int m_seqNo;
 
-    QTimer* m_timer;
+    // timer for sending a status message to a random neighbor
+    QTimer* m_statusTimer;
+
+    // timer for sending a route rumor message to a random neighbor
+    QTimer* m_routeTimer;
 };
 
 extern NetSocket* GlobalSocket;

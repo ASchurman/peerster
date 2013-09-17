@@ -6,6 +6,7 @@
 #include "ChatDialog.hh"
 #include "NetSocket.hh"
 #include "MessageStore.hh"
+#include "RouteTable.hh"
 #include "Common.hh"
 
 int main(int argc, char **argv)
@@ -20,6 +21,7 @@ int main(int argc, char **argv)
     GlobalSocket = new NetSocket();
     GlobalChatDialog = new ChatDialog();
     GlobalMessages = new MessageStore();
+    GlobalRoutes = new RouteTable();
 
     // Create an initial chat dialog window
     GlobalChatDialog->show();
@@ -33,8 +35,14 @@ int main(int argc, char **argv)
     // Connect the signal from GlobalMessages indicating that we received a new
     // message for the first time to the slot in GlobalChatDialog that prints
     // a new message
-    QObject::connect(GlobalMessages, SIGNAL(newMessage(MessageInfo&)),
+    QObject::connect(GlobalMessages, SIGNAL(newMessage(MessageInfo&, AddrInfo&)),
                      GlobalChatDialog, SLOT(printMessage(MessageInfo&)));
+
+    // Connect the signal from GlobalMessages indicating that we received a new
+    // message for the first time to the slot in GlobalRoutes that records
+    // an entry in the routing table.
+    QObject::connect(GlobalMessages, SIGNAL(newMessage(MessageInfo&, AddrInfo&)),
+                     GlobalRoutes, SLOT(addRoute(MessageInfo&, AddrInfo&)));
 
     // Parse command line arguments to add neighbors
     QStringList args = QCoreApplication::arguments();
@@ -42,6 +50,9 @@ int main(int argc, char **argv)
     {
         GlobalSocket->addNeighbor(args[i]);
     }
+
+    // send route rumor message to "prime the pump"
+    GlobalSocket->sendRandRouteRumor();
 
     // Enter the Qt main loop; everything else is event driven
     return app.exec();

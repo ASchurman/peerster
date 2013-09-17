@@ -34,9 +34,9 @@ void Monger::timeout()
     GlobalSocket->sendToRandNeighbor(m_lastSent);
 }
 
-void Monger::receiveMessage(MessageInfo mesInf)
+void Monger::receiveMessage(MessageInfo mesInf, AddrInfo& addrInfo)
 {
-    if (GlobalMessages->recordMessage(mesInf))
+    if (GlobalMessages->recordMessage(mesInf, addrInfo))
     {
         // this is a new rumor
         GlobalSocket->sendToRandNeighbor(mesInf);

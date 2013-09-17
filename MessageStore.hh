@@ -30,25 +30,19 @@ public:
     //     extra messages on the local host if such a message exists
     int getStatusDiff(QVariantMap& remoteStatus, MessageInfo& mesInfOut);
 
-    // Returns a specific message from a given host. Returns NULL if the
-    // specified message does not exist. Caller is responsible for deleting
-    // the returned QString.
-    QString* getMessage(QString& hostName, int messsageNum);
-
     // Records a new message in internal data structures.
     // Returns true if the message is new, false if not.
-    bool recordMessage(MessageInfo& mesInf);
+    bool recordMessage(MessageInfo& mesInf, AddrInfo& addr);
 
 signals:
     // Indicates that a new message has been seen for the first time. mesInf
-    // is that message.
-    void newMessage(MessageInfo& mesInf);
+    // is that message, which arrived from addr.
+    void newMessage(MessageInfo& mesInf, AddrInfo& addr);
 
 private:
     // Map keyed by host names.
-    // The value QMaps are keyed by message number and contain
-    // QString messages.
-    QMap<QString, QMap<int, QString> > m_messages;
+    // The value QMaps are keyed by message number.
+    QMap<QString, QMap<int, MessageInfo> > m_messages;
 };
 
 extern MessageStore* GlobalMessages;

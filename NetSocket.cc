@@ -29,9 +29,13 @@ NetSocket::NetSocket()
 
     connect(this, SIGNAL(readyRead()), this, SLOT(gotReadyRead()));
 
-    m_timer = new QTimer(this);
-    connect(m_timer, SIGNAL(timeout()), this, SLOT(sendStatusToRandNeighbor()));
-    m_timer->start(10000);
+    m_statusTimer = new QTimer(this);
+    connect(m_statusTimer, SIGNAL(timeout()), this, SLOT(sendStatusToRandNeighbor()));
+    m_statusTimer->start(10000);
+
+    m_routeTimer = new QTimer(this);
+    connect(m_routeTimer, SIGNAL(timeout()), this, SLOT(sendRandRouteRumor()));
+    m_routeTimer->start(60000);
 }
 
 bool NetSocket::bind()
@@ -172,21 +176,25 @@ void NetSocket::gotReadyRead()
         // varMap now contains the QVariantMap serialized in the received
         // datagram
 
-        if (varMap.count() == 3
-            && varMap.contains(CHAT_TEXT)
+        if (((varMap.count() == 3 && varMap.contains(CHAT_TEXT)) || varMap.count() == 2)
             && varMap.contains(ORIGIN)
             && varMap.contains(SEQ_NO))
         {
             // received a rumor message!
-            MessageInfo mesInf(varMap[CHAT_TEXT].toString(),
-                               varMap[ORIGIN].toString(),
+            MessageInfo mesInf(varMap[ORIGIN].toString(),
                                varMap[SEQ_NO].toInt());
+
+            // add message body if this isn't a route rumor message
+            if (varMap.contains(CHAT_TEXT))
+            {
+                mesInf.addBody(varMap[CHAT_TEXT].toString());
+            }
 
             if (!findNeighbor(addrInfo))
             {
                 addNeighbor(addrInfo);
             }
-            findNeighbor(addrInfo)->receiveMessage(mesInf);
+            findNeighbor(addrInfo)->receiveMessage(mesInf, addrInfo);
         }
         else if (varMap.count() == 1
                  && varMap.contains(WANT))
@@ -206,13 +214,16 @@ void NetSocket::gotReadyRead()
 void NetSocket::inputMessage(QString& message)
 {
     MessageInfo mesInf;
+    mesInf.m_isRoute = false;
     mesInf.m_body = message;
     mesInf.m_host = m_hostName;
     mesInf.m_seqNo = m_seqNo;
 
     m_seqNo++;
 
-    GlobalMessages->recordMessage(mesInf);
+    AddrInfo addr(QHostAddress(QHostAddress::LocalHost), m_myPort);
+
+    GlobalMessages->recordMessage(mesInf, addr);
     sendToRandNeighbor(mesInf);
 }
 
@@ -236,7 +247,7 @@ void NetSocket::sendMessage(MessageInfo& mesInf,
                             QHostAddress address, int port)
 {
     QVariantMap varMap;
-    varMap.insert(CHAT_TEXT, mesInf.m_body);
+    if (!mesInf.m_isRoute) varMap.insert(CHAT_TEXT, mesInf.m_body);
     varMap.insert(ORIGIN, mesInf.m_host);
     varMap.insert(SEQ_NO, mesInf.m_seqNo);
     sendMap(varMap, address, port);
@@ -268,4 +279,19 @@ void NetSocket::sendMap(QVariantMap& varMap, QHostAddress address, int port)
     dataStream << varMap;
 
     writeDatagram(datagram, address, port);
+}
+
+void NetSocket::sendRandRouteRumor()
+{
+    MessageInfo mesInf;
+    mesInf.m_isRoute = true;
+    mesInf.m_host = m_hostName;
+    mesInf.m_seqNo = m_seqNo;
+
+    m_seqNo++;
+
+    AddrInfo addr(QHostAddress(QHostAddress::LocalHost), m_myPort);
+
+    GlobalMessages->recordMessage(mesInf, addr);
+    sendToRandNeighbor(mesInf);
 }

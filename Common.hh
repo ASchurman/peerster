@@ -8,9 +8,23 @@
 class MessageInfo
 {
 public:
-    MessageInfo() { }
+    MessageInfo()
+        : m_isRoute(false) { }
+
     MessageInfo(QString body, QString host, int seqNo)
-        : m_body(body), m_host(host), m_seqNo(seqNo) { }
+        : m_isRoute(false), m_body(body), m_host(host), m_seqNo(seqNo) { }
+
+    MessageInfo(QString host, int seqNo)
+        : m_isRoute(true), m_host(host), m_seqNo(seqNo) { }
+
+    void addBody(QString body)
+    {
+        m_body = body;
+        m_isRoute = false;
+    }
+
+    // if true, this is a route rumor message and contains no body 
+    bool m_isRoute;
 
     QString m_body, m_host;
     int m_seqNo;

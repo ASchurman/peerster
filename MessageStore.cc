@@ -11,7 +11,7 @@ QVariantMap* MessageStore::getStatus()
     QList<QString> hosts = m_messages.keys();
     for (int i = 0; i < hosts.count(); i++)
     {
-        QMap<int, QString> hostMap = m_messages[hosts[i]];
+        QMap<int, MessageInfo> hostMap = m_messages[hosts[i]];
         QList<int> mesNums = hostMap.keys();
 
         // figure out the first seqno for this host that we need
@@ -58,13 +58,14 @@ int MessageStore::getStatusDiff(QVariantMap& remoteStatus, MessageInfo& mesInfOu
             mesInfOut.m_host = hostName;
 
             QList<int> seqNos = m_messages[hostName].keys();
-            QList<QString> messes = m_messages[hostName].values();
+            QList<MessageInfo> messes = m_messages[hostName].values();
             for (int j = 0; j < seqNos.count(); j++)
             {
                 if (remoteMissing || seqNos[j] == remoteNeed)
                 {
-                    mesInfOut.m_seqNo = seqNos[j];
-                    mesInfOut.m_body = messes[j];
+                    mesInfOut.m_seqNo = messes[j].m_seqNo;
+                    mesInfOut.m_isRoute = messes[j].m_isRoute;
+                    if (!messes[j].m_isRoute) mesInfOut.m_body = messes[j].m_body;
                     return 1;
                 }
             }
@@ -90,32 +91,17 @@ int MessageStore::getStatusDiff(QVariantMap& remoteStatus, MessageInfo& mesInfOu
     }
 }
 
-QString* MessageStore::getMessage(QString& hostName, int messsageNum)
-{
-    if (m_messages.contains(hostName)
-        && m_messages[hostName].contains(messsageNum))
-    {
-        QString* pMessage = new QString(m_messages[hostName][messsageNum]);
-        return pMessage;
-    }
-    else
-    {
-        return NULL;
-    }
-}
-
-bool MessageStore::recordMessage(MessageInfo& mesInf)
+bool MessageStore::recordMessage(MessageInfo& mesInf, AddrInfo& addr)
 {
     QString& hostName = mesInf.m_host;
-    QString& message = mesInf.m_body;
     int num = mesInf.m_seqNo;
 
     if (m_messages.contains(hostName))
     {
         if (!m_messages[hostName].contains(num))
         {
-            m_messages[hostName].insert(num, message);
-            emit newMessage(mesInf);
+            m_messages[hostName].insert(num, mesInf);
+            emit newMessage(mesInf, addr);
             qDebug() << "Got new message. Host: " << hostName
                 << ", seqno: " << num;
             return true;
@@ -123,10 +109,10 @@ bool MessageStore::recordMessage(MessageInfo& mesInf)
     }
     else
     {
-        QMap<int, QString> newHostMap;
-        newHostMap.insert(num, message);
+        QMap<int, MessageInfo> newHostMap;
+        newHostMap.insert(num, mesInf);
         m_messages.insert(hostName, newHostMap);
-        emit newMessage(mesInf);
+        emit newMessage(mesInf, addr);
         qDebug() << "Got new message (new host). Host: " << hostName
             << ", seqno: " << num;
         return true;

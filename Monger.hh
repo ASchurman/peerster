@@ -18,7 +18,7 @@ public:
     Monger();
     Monger(AddrInfo addrInfo);
 
-    void receiveMessage(MessageInfo mesInf);
+    void receiveMessage(MessageInfo mesInf, AddrInfo& addrInfo);
 
     void receiveStatus(QVariantMap remoteStatus);
 
