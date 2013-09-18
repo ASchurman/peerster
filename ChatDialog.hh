@@ -4,6 +4,8 @@
 #include <QDialog>
 #include <QLineEdit>
 #include <QTextEdit>
+#include <QVBoxLayout>
+#include <QListWidget>
 
 #include "Common.hh"
 
@@ -17,13 +19,19 @@ public:
 public slots:
     void gotTextChanged();
     void printMessage(MessageInfo& mesInf);
+    void printPrivate(QString& chatText);
     void processNeighborLine();
+    void addOriginForPrivates(QString& host);
 
 private:
-    QTextEdit* m_pChatView;
-    QTextEdit* m_pMessageBox;
+    QVBoxLayout* m_pChatLayout;
+    QVBoxLayout* m_pSendLayout;
 
+    QTextEdit* m_pChatView;
     QLineEdit* m_pNeighbor;
+
+    QListWidget* m_pSendOptions;
+    QTextEdit* m_pMessageBox;
 };
 
 extern ChatDialog* GlobalChatDialog;

@@ -27,6 +27,9 @@ public:
     void sendMessage(MessageInfo& mesInf, QHostAddress addresss, int port);
     void sendStatus(QHostAddress address, int port);
 
+    void sendPrivate(QString& dest, int hopLimit, QString& chatText);
+    void sendPrivate(QString& dest, QString& chatText);
+
     void addNeighbor(AddrInfo addrInfo);
     void addNeighbor(QString& hostPortStr);
 
@@ -43,6 +46,7 @@ signals:
 
 private:
     void sendMap(QVariantMap& varMap, QHostAddress address, int port);
+    void sendMap(QVariantMap& varMap, AddrInfo& addr);
 
     // finds the provided AddrInfo in m_neighborAddrs and returns a pointer to
     // it, else returns NULL

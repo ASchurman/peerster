@@ -102,8 +102,17 @@ bool MessageStore::recordMessage(MessageInfo& mesInf, AddrInfo& addr)
         {
             m_messages[hostName].insert(num, mesInf);
             emit newMessage(mesInf, addr);
-            qDebug() << "Got new message. Host: " << hostName
-                << ", seqno: " << num;
+
+            if (mesInf.m_isRoute)
+            {
+                qDebug() << "Got new route message. Host: " << hostName
+                    << ", seqno: " << num;
+            }
+            else
+            {
+                qDebug() << "Got new message. Host: " << hostName
+                    << ", seqno: " << num;
+            }
             return true;
         }
     }
@@ -113,8 +122,17 @@ bool MessageStore::recordMessage(MessageInfo& mesInf, AddrInfo& addr)
         newHostMap.insert(num, mesInf);
         m_messages.insert(hostName, newHostMap);
         emit newMessage(mesInf, addr);
-        qDebug() << "Got new message (new host). Host: " << hostName
-            << ", seqno: " << num;
+
+        if (mesInf.m_isRoute)
+        {
+            qDebug() << "Got new route message (new host). Host: " << hostName
+                << ", seqno: " << num;
+        }
+        else
+        {
+            qDebug() << "Got new message (new host). Host: " << hostName
+                << ", seqno: " << num;
+        }
         return true;
     }
 

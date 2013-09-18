@@ -4,6 +4,8 @@
 
 #include "NetSocket.hh"
 #include "MessageStore.hh"
+#include "RouteTable.hh"
+#include "ChatDialog.hh"
 
 NetSocket* GlobalSocket;
 
@@ -11,6 +13,8 @@ NetSocket* GlobalSocket;
 #define ORIGIN "Origin"
 #define SEQ_NO "SeqNo"
 #define WANT "Want"
+#define DEST "Dest"
+#define HOP_LIMIT "HopLimit"
 
 NetSocket::NetSocket()
 {
@@ -25,7 +29,9 @@ NetSocket::NetSocket()
     m_myPortMax = m_myPortMin + 3;
 
     m_seqNo = 1;
+
     m_hostName.setNum(rand());
+    m_hostName.prepend("Alex");
 
     connect(this, SIGNAL(readyRead()), this, SLOT(gotReadyRead()));
 
@@ -196,6 +202,26 @@ void NetSocket::gotReadyRead()
             }
             findNeighbor(addrInfo)->receiveMessage(mesInf, addrInfo);
         }
+        else if (varMap.count() == 3
+                 && varMap.contains(DEST)
+                 && varMap.contains(HOP_LIMIT)
+                 && varMap.contains(CHAT_TEXT))
+        {
+            // received private message!
+            QString chatText(varMap[CHAT_TEXT].toString());
+            QString dest(varMap[DEST].toString());
+            int hopLimit = varMap[HOP_LIMIT].toInt();
+
+            if (dest == m_hostName)
+            {
+                // this private message is meant for me
+                GlobalChatDialog->printPrivate(chatText);
+            }
+            else if (hopLimit - 1 > 0)
+            {
+                sendPrivate(dest, hopLimit - 1, chatText);
+            }
+        }
         else if (varMap.count() == 1
                  && varMap.contains(WANT))
         {
@@ -279,6 +305,43 @@ void NetSocket::sendMap(QVariantMap& varMap, QHostAddress address, int port)
     dataStream << varMap;
 
     writeDatagram(datagram, address, port);
+}
+
+void NetSocket::sendMap(QVariantMap& varMap, AddrInfo& addr)
+{
+    if (!addr.m_isDns)
+    {
+        sendMap(varMap, addr.m_addr, addr.m_port);
+    }
+    else
+    {
+        qDebug() << "Attempting to send map to AddrInfo with m_isDns";
+    }
+}
+
+void NetSocket::sendPrivate(QString& dest, int hopLimit, QString& chatText)
+{
+    AddrInfo addr;
+
+    if (GlobalRoutes->getNextHop(dest, addr))
+    {
+        QVariantMap varMap;
+        varMap.insert(DEST, dest);
+        varMap.insert(HOP_LIMIT, hopLimit);
+        varMap.insert(CHAT_TEXT, chatText);
+
+        sendMap(varMap, addr);
+    }
+    else
+    {
+        // There's no route table entry for dest
+        qDebug() << "Cannot send private message to " << dest;
+    }
+}
+
+void NetSocket::sendPrivate(QString& dest, QString& chatText)
+{
+    sendPrivate(dest, 10, chatText);
 }
 
 void NetSocket::sendRandRouteRumor()

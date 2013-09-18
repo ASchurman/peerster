@@ -31,7 +31,8 @@ void Monger::startTimer()
 void Monger::timeout()
 {
     qDebug() << "Timeout";
-    GlobalSocket->sendToRandNeighbor(m_lastSent);
+    int resend = rand() % 2;
+    if (resend) GlobalSocket->sendToRandNeighbor(m_lastSent);
 }
 
 void Monger::receiveMessage(MessageInfo mesInf, AddrInfo& addrInfo)

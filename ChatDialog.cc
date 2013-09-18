@@ -1,8 +1,11 @@
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QDebug>
 
 #include "ChatDialog.hh"
 #include "NetSocket.hh"
+
+#define BROADCAST "Send to All"
 
 ChatDialog* GlobalChatDialog;
 
@@ -25,14 +28,24 @@ ChatDialog::ChatDialog()
     // a line in which the user can add new neighbors
     m_pNeighbor = new QLineEdit(this);
 
-    // Lay out the widgets to appear in the main window.
-    // For Qt widget and layout concepts see:
-    // http://doc.qt.nokia.com/4.7-snapshot/widgets-and-layouts.html
-    QVBoxLayout *layout = new QVBoxLayout();
-    layout->addWidget(m_pChatView);
-    layout->addWidget(m_pMessageBox);
-    layout->addWidget(m_pNeighbor);
-    setLayout(layout);
+    // List of origins to send a private message to, with an option to send to
+    // everyone using the gossip protocol
+    m_pSendOptions = new QListWidget();
+    m_pSendOptions->addItem(BROADCAST);
+
+    QHBoxLayout* topLayout = new QHBoxLayout();
+
+    m_pChatLayout = new QVBoxLayout();
+    m_pChatLayout->addWidget(m_pChatView);
+    m_pChatLayout->addWidget(m_pNeighbor);
+
+    m_pSendLayout = new QVBoxLayout();
+    m_pSendLayout->addWidget(m_pSendOptions);
+    m_pSendLayout->addWidget(m_pMessageBox);
+
+    topLayout->addLayout(m_pChatLayout);
+    topLayout->addLayout(m_pSendLayout);
+    setLayout(topLayout);
 
     // Register a callback on the m_pMessageBox's textChanged signal
     // so that we can send the message entered by the user.
@@ -56,7 +69,24 @@ void ChatDialog::gotTextChanged()
         // strip the terminating '\n'
         message.truncate(message.size() - 1);
 
-        GlobalSocket->inputMessage(message);
+        QListWidgetItem* pSendOption;
+        if (pSendOption = m_pSendOptions->currentItem())
+        {
+            QString sendOptionStr = pSendOption->text();
+
+            if (sendOptionStr == BROADCAST)
+            {
+                GlobalSocket->inputMessage(message);
+            }
+            else
+            {
+                GlobalSocket->sendPrivate(sendOptionStr, message);
+            }
+        }
+        else
+        {
+            qDebug() << "No send option selected";
+        }
 
         // Clear the m_pMessageBox to get ready for the next input message.
         m_pMessageBox->clear();
@@ -71,9 +101,19 @@ void ChatDialog::printMessage(MessageInfo& mesInf)
     }
 }
 
+void ChatDialog::printPrivate(QString& chatText)
+{
+    m_pChatView->append(chatText);
+}
+
 void ChatDialog::processNeighborLine()
 {
     QString str = m_pNeighbor->displayText();
     GlobalSocket->addNeighbor(str);
     m_pNeighbor->clear();
+}
+
+void ChatDialog::addOriginForPrivates(QString& host)
+{
+    m_pSendOptions->addItem(host);
 }

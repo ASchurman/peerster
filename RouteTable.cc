@@ -1,6 +1,7 @@
 #include <QDebug>
 
 #include "RouteTable.hh"
+#include "ChatDialog.hh"
 
 RouteTable* GlobalRoutes;
 
@@ -28,6 +29,11 @@ void RouteTable::addRoute(MessageInfo& mesInf, AddrInfo& addr)
     else
     {
         qDebug() << "Adding/editing route for " << mesInf.m_host;
+    }
+
+    if (!m_table.contains(mesInf.m_host))
+    {
+        GlobalChatDialog->addOriginForPrivates(mesInf.m_host);
     }
 
     m_table[mesInf.m_host].m_addr = addr.m_addr;
