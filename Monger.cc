@@ -32,7 +32,11 @@ void Monger::timeout()
 {
     qDebug() << "Timeout";
     int resend = rand() % 2;
-    if (resend) GlobalSocket->sendToRandNeighbor(m_lastSent);
+    if (resend
+        && (GlobalSocket->m_forward || m_lastSent.m_isRoute))
+    {
+        GlobalSocket->sendToRandNeighbor(m_lastSent);
+    }
 }
 
 void Monger::receiveMessage(MessageInfo mesInf, AddrInfo& addrInfo)
@@ -40,7 +44,10 @@ void Monger::receiveMessage(MessageInfo mesInf, AddrInfo& addrInfo)
     if (GlobalMessages->recordMessage(mesInf, addrInfo))
     {
         // this is a new rumor
-        GlobalSocket->sendToRandNeighbor(mesInf);
+        if (GlobalSocket->m_forward || mesInf.m_isRoute)
+        {
+            GlobalSocket->sendToRandNeighbor(mesInf);
+        }
     }
 
     // now reply with status
@@ -62,7 +69,10 @@ void Monger::receiveStatus(QVariantMap remoteStatus)
     else if (statusDiff > 0)
     {
         // we have messages the remote host doesn't, so send one
-        GlobalSocket->sendMessage(mesInf, m_addrInfo.m_addr, m_addrInfo.m_port);
+        if (GlobalSocket->m_forward || mesInf.m_isRoute)
+        {
+            GlobalSocket->sendMessage(mesInf, m_addrInfo.m_addr, m_addrInfo.m_port);
+        }
     }
     else // statusDiff == 0
     {

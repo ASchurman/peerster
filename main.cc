@@ -44,11 +44,18 @@ int main(int argc, char **argv)
     QObject::connect(GlobalMessages, SIGNAL(newMessage(MessageInfo&, AddrInfo&)),
                      GlobalRoutes, SLOT(addRoute(MessageInfo&, AddrInfo&)));
 
-    // Parse command line arguments to add neighbors
+    // Parse command line arguments
     QStringList args = QCoreApplication::arguments();
     for (int i = 1; i < args.count(); i++)
     {
-        GlobalSocket->addNeighbor(args[i]);
+        if (args[i] == "-noforward")
+        {
+            GlobalSocket->noForward();
+        }
+        else
+        {
+            GlobalSocket->addNeighbor(args[i]);
+        }
     }
 
     // send route rumor message to "prime the pump"

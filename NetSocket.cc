@@ -42,6 +42,14 @@ NetSocket::NetSocket()
     m_routeTimer = new QTimer(this);
     connect(m_routeTimer, SIGNAL(timeout()), this, SLOT(sendRandRouteRumor()));
     m_routeTimer->start(60000);
+
+    m_forward = true;
+}
+
+void NetSocket::noForward()
+{
+    qDebug() << "NO FORWARD";
+    m_forward = false;
 }
 
 bool NetSocket::bind()
@@ -217,7 +225,7 @@ void NetSocket::gotReadyRead()
                 // this private message is meant for me
                 GlobalChatDialog->printPrivate(chatText);
             }
-            else if (hopLimit - 1 > 0)
+            else if (hopLimit - 1 > 0 && m_forward)
             {
                 sendPrivate(dest, hopLimit - 1, chatText);
             }

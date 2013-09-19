@@ -33,6 +33,9 @@ public:
     void addNeighbor(AddrInfo addrInfo);
     void addNeighbor(QString& hostPortStr);
 
+    void noForward();
+    bool m_forward;
+
 public slots:
     void gotReadyRead();
     void sendStatusToRandNeighbor();
