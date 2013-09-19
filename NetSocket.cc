@@ -329,7 +329,9 @@ void NetSocket::sendPrivate(QString& dest, int hopLimit, QString& chatText)
         varMap.insert(DEST, dest);
         varMap.insert(HOP_LIMIT, hopLimit);
         varMap.insert(CHAT_TEXT, chatText);
+        varMap.insert(ORIGIN, m_hostName);
 
+        GlobalChatDialog->printPrivate(chatText);
         sendMap(varMap, addr);
     }
     else
