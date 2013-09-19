@@ -70,7 +70,8 @@ void ChatDialog::gotTextChanged()
         message.truncate(message.size() - 1);
 
         QListWidgetItem* pSendOption;
-        if (pSendOption = m_pSendOptions->currentItem())
+        // INTENTIONAL SINGLE =
+        if ( (pSendOption = m_pSendOptions->currentItem()) )
         {
             QString sendOptionStr = pSendOption->text();
 

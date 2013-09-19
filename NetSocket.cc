@@ -202,7 +202,7 @@ void NetSocket::gotReadyRead()
             }
             findNeighbor(addrInfo)->receiveMessage(mesInf, addrInfo);
         }
-        else if (varMap.count() == 3
+        else if ((varMap.count() == 3 || varMap.count() == 4)
                  && varMap.contains(DEST)
                  && varMap.contains(HOP_LIMIT)
                  && varMap.contains(CHAT_TEXT))
