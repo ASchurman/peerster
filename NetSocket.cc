@@ -213,8 +213,10 @@ void NetSocket::gotReadyRead()
 
             // LAST_PORT and LAST_IP to neighbors if they are provided in
             // the datagram
+            bool isDirect = true;
             if (varMap.contains(LAST_PORT) && varMap.contains(LAST_IP))
             {
+                isDirect = false;
                 QHostAddress lastAddress(varMap[LAST_IP].toInt());
                 int lastPort = varMap[LAST_PORT].toInt();
                 AddrInfo lastAddrInfo(lastAddress, lastPort);
@@ -227,7 +229,7 @@ void NetSocket::gotReadyRead()
 
             mesInf.addLastRoute(address.toIPv4Address(), (quint16)port);
 
-            findNeighbor(addrInfo)->receiveMessage(mesInf, addrInfo);
+            findNeighbor(addrInfo)->receiveMessage(mesInf, addrInfo, isDirect);
         }
         else if (varMap.contains(DEST)
                  && varMap.contains(HOP_LIMIT)
@@ -245,6 +247,7 @@ void NetSocket::gotReadyRead()
             }
             else if (hopLimit - 1 > 0 && m_forward)
             {
+                qDebug() << "Routing private w/DEST = " << dest;
                 sendPrivate(dest, hopLimit - 1, chatText);
             }
         }
@@ -274,7 +277,7 @@ void NetSocket::inputMessage(QString& message)
 
     AddrInfo addr(QHostAddress(QHostAddress::LocalHost), m_myPort);
 
-    GlobalMessages->recordMessage(mesInf, addr);
+    GlobalMessages->recordMessage(mesInf, addr, true/*isDirect*/);
     sendToRandNeighbor(mesInf);
 }
 
@@ -361,7 +364,6 @@ void NetSocket::sendPrivate(QString& dest, int hopLimit, QString& chatText)
         varMap.insert(CHAT_TEXT, chatText);
         varMap.insert(ORIGIN, m_hostName);
 
-        GlobalChatDialog->printPrivate(chatText);
         sendMap(varMap, addr);
     }
     else
@@ -373,6 +375,7 @@ void NetSocket::sendPrivate(QString& dest, int hopLimit, QString& chatText)
 
 void NetSocket::sendPrivate(QString& dest, QString& chatText)
 {
+    GlobalChatDialog->printPrivate(chatText);
     sendPrivate(dest, 10, chatText);
 }
 
@@ -387,6 +390,6 @@ void NetSocket::sendRandRouteRumor()
 
     AddrInfo addr(QHostAddress(QHostAddress::LocalHost), m_myPort);
 
-    GlobalMessages->recordMessage(mesInf, addr);
+    GlobalMessages->recordMessage(mesInf, addr, true/*isDirect*/);
     sendToRandNeighbor(mesInf);
 }

@@ -32,12 +32,12 @@ public:
 
     // Records a new message in internal data structures.
     // Returns true if the message is new, false if not.
-    bool recordMessage(MessageInfo& mesInf, AddrInfo& addr);
+    bool recordMessage(MessageInfo& mesInf, AddrInfo& addr, bool isDirect);
 
 signals:
     // Indicates that a new message has been seen for the first time. mesInf
     // is that message, which arrived from addr.
-    void newMessage(MessageInfo& mesInf, AddrInfo& addr);
+    void newMessage(MessageInfo& mesInf, AddrInfo& addr, bool isDirect);
 
 private:
     // Map keyed by host names.

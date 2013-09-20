@@ -35,14 +35,14 @@ int main(int argc, char **argv)
     // Connect the signal from GlobalMessages indicating that we received a new
     // message for the first time to the slot in GlobalChatDialog that prints
     // a new message
-    QObject::connect(GlobalMessages, SIGNAL(newMessage(MessageInfo&, AddrInfo&)),
+    QObject::connect(GlobalMessages, SIGNAL(newMessage(MessageInfo&, AddrInfo&, bool)),
                      GlobalChatDialog, SLOT(printMessage(MessageInfo&)));
 
     // Connect the signal from GlobalMessages indicating that we received a new
     // message for the first time to the slot in GlobalRoutes that records
     // an entry in the routing table.
-    QObject::connect(GlobalMessages, SIGNAL(newMessage(MessageInfo&, AddrInfo&)),
-                     GlobalRoutes, SLOT(addRoute(MessageInfo&, AddrInfo&)));
+    QObject::connect(GlobalMessages, SIGNAL(newMessage(MessageInfo&, AddrInfo&, bool)),
+                     GlobalRoutes, SLOT(addRoute(MessageInfo&, AddrInfo&, bool)));
 
     // Parse command line arguments
     QStringList args = QCoreApplication::arguments();

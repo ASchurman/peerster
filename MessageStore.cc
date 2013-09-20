@@ -91,7 +91,7 @@ int MessageStore::getStatusDiff(QVariantMap& remoteStatus, MessageInfo& mesInfOu
     }
 }
 
-bool MessageStore::recordMessage(MessageInfo& mesInf, AddrInfo& addr)
+bool MessageStore::recordMessage(MessageInfo& mesInf, AddrInfo& addr, bool isDirect)
 {
     QString& hostName = mesInf.m_host;
     int num = mesInf.m_seqNo;
@@ -101,7 +101,7 @@ bool MessageStore::recordMessage(MessageInfo& mesInf, AddrInfo& addr)
         if (!m_messages[hostName].contains(num))
         {
             m_messages[hostName].insert(num, mesInf);
-            emit newMessage(mesInf, addr);
+            emit newMessage(mesInf, addr, isDirect);
 
             if (mesInf.m_isRoute)
             {
@@ -121,7 +121,7 @@ bool MessageStore::recordMessage(MessageInfo& mesInf, AddrInfo& addr)
         QMap<int, MessageInfo> newHostMap;
         newHostMap.insert(num, mesInf);
         m_messages.insert(hostName, newHostMap);
-        emit newMessage(mesInf, addr);
+        emit newMessage(mesInf, addr, isDirect);
 
         if (mesInf.m_isRoute)
         {

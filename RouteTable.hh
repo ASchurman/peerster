@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QHash>
+#include <QPair>
 
 #include "Common.hh"
 
@@ -19,12 +20,17 @@ public:
 
 public slots:
     // Adds or edits a route in the routing table
-    void addRoute(MessageInfo& mesInf, AddrInfo& addr);
+    void addRoute(MessageInfo& mesInf, AddrInfo& addr, bool isDirectHop);
 
 private:
-    // Contains routing info. Keyed by ORIGIN value. Values are the next hop
-    // to reach that ORIGIN.
-    QHash<QString, AddrInfo> m_table;
+    // Contains routing info. Keyed by ORIGIN value.
+    // Values contain the seqNo of the message that gave the most recent
+    // route and the next hop.
+    QHash<QString, QPair<int, AddrInfo> > m_table;
+
+    // Keyed by ORIGIN value. Indicates whether the route info for the ORIGIN
+    // is a direct hop or not.
+    QHash<QString, bool> m_directHop;
 };
 
 extern RouteTable* GlobalRoutes;

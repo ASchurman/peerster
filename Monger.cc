@@ -39,9 +39,9 @@ void Monger::timeout()
     }
 }
 
-void Monger::receiveMessage(MessageInfo mesInf, AddrInfo& addrInfo)
+void Monger::receiveMessage(MessageInfo mesInf, AddrInfo& addrInfo, bool isDirect)
 {
-    if (GlobalMessages->recordMessage(mesInf, addrInfo))
+    if (GlobalMessages->recordMessage(mesInf, addrInfo, isDirect))
     {
         // this is a new rumor
         if (GlobalSocket->m_forward || mesInf.m_isRoute)
