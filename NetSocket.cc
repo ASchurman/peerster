@@ -9,12 +9,15 @@
 
 NetSocket* GlobalSocket;
 
+// VariantMap keys defined by the protocol
 #define CHAT_TEXT "ChatText"
 #define ORIGIN "Origin"
 #define SEQ_NO "SeqNo"
 #define WANT "Want"
 #define DEST "Dest"
 #define HOP_LIMIT "HopLimit"
+#define LAST_IP "LastIP"
+#define LAST_PORT "LastPort"
 
 NetSocket::NetSocket()
 {
@@ -190,8 +193,7 @@ void NetSocket::gotReadyRead()
         // varMap now contains the QVariantMap serialized in the received
         // datagram
 
-        if (((varMap.count() == 3 && varMap.contains(CHAT_TEXT)) || varMap.count() == 2)
-            && varMap.contains(ORIGIN)
+        if (varMap.contains(ORIGIN)
             && varMap.contains(SEQ_NO))
         {
             // received a rumor message!
@@ -208,10 +210,26 @@ void NetSocket::gotReadyRead()
             {
                 addNeighbor(addrInfo);
             }
+
+            // LAST_PORT and LAST_IP to neighbors if they are provided in
+            // the datagram
+            if (varMap.contains(LAST_PORT) && varMap.contains(LAST_IP))
+            {
+                QHostAddress lastAddress(varMap[LAST_IP].toInt());
+                int lastPort = varMap[LAST_PORT].toInt();
+                AddrInfo lastAddrInfo(lastAddress, lastPort);
+
+                if (!findNeighbor(lastAddrInfo))
+                {
+                    addNeighbor(lastAddrInfo);
+                }
+            }
+
+            mesInf.addLastRoute(address.toIPv4Address(), (quint16)port);
+
             findNeighbor(addrInfo)->receiveMessage(mesInf, addrInfo);
         }
-        else if ((varMap.count() == 3 || varMap.count() == 4)
-                 && varMap.contains(DEST)
+        else if (varMap.contains(DEST)
                  && varMap.contains(HOP_LIMIT)
                  && varMap.contains(CHAT_TEXT))
         {
@@ -230,8 +248,7 @@ void NetSocket::gotReadyRead()
                 sendPrivate(dest, hopLimit - 1, chatText);
             }
         }
-        else if (varMap.count() == 1
-                 && varMap.contains(WANT))
+        else if (varMap.contains(WANT))
         {
             // received a status message!
             QVariantMap remoteStatus(varMap[WANT].toMap());
@@ -284,6 +301,11 @@ void NetSocket::sendMessage(MessageInfo& mesInf,
     if (!mesInf.m_isRoute) varMap.insert(CHAT_TEXT, mesInf.m_body);
     varMap.insert(ORIGIN, mesInf.m_host);
     varMap.insert(SEQ_NO, mesInf.m_seqNo);
+    if (mesInf.m_hasLastRoute)
+    {
+        varMap.insert(LAST_IP, mesInf.m_lastIP);
+        varMap.insert(LAST_PORT, mesInf.m_lastPort);
+    }
     sendMap(varMap, address, port);
 
     AddrInfo addrInfo(address, port);

@@ -9,13 +9,27 @@ class MessageInfo
 {
 public:
     MessageInfo()
-        : m_isRoute(false) { }
+    {
+        m_isRoute = false;
+        m_hasLastRoute = false;
+    }
 
     MessageInfo(QString body, QString host, int seqNo)
-        : m_isRoute(false), m_body(body), m_host(host), m_seqNo(seqNo) { }
+    {
+        m_isRoute = false;
+        m_hasLastRoute = false;
+        m_body = body;
+        m_host = host;
+        m_seqNo = seqNo;
+    }
 
     MessageInfo(QString host, int seqNo)
-        : m_isRoute(true), m_host(host), m_seqNo(seqNo) { }
+    {
+        m_isRoute = true;
+        m_hasLastRoute = false;
+        m_host = host;
+        m_seqNo = seqNo;
+    }
 
     void addBody(QString body)
     {
@@ -23,11 +37,22 @@ public:
         m_isRoute = false;
     }
 
+    void addLastRoute(quint32 lastIP, quint16 lastPort)
+    {
+        m_hasLastRoute = true;
+        m_lastIP = lastIP;
+        m_lastPort = lastPort;
+    }
+
     // if true, this is a route rumor message and contains no body 
     bool m_isRoute;
 
     QString m_body, m_host;
     int m_seqNo;
+
+    bool m_hasLastRoute;
+    quint32 m_lastIP;
+    quint16 m_lastPort;
 };
 
 class AddrInfo
