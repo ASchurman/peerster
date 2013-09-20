@@ -43,6 +43,11 @@ void RouteTable::addRoute(MessageInfo& mesInf, AddrInfo& addr, bool isDirectHop)
     {
         qDebug() << "Editing route for " << mesInf.m_host;
 
+        if (isDirectHop)
+        {
+            qDebug() << "Got a DIRECT HOP for " << mesInf.m_host;
+        }
+
         update = true;
     }
 
