@@ -283,10 +283,23 @@ void NetSocket::inputMessage(QString& message)
 
 void NetSocket::sendToRandNeighbor(MessageInfo& mesInf)
 {
-    int i = rand() % m_neighborAddrs.count();
-    AddrInfo addrInfo = m_neighborAddrs[i];
+    // If this is a route rumor message, we're actually going to send it to
+    // all our neighbors.
+    if (mesInf.m_isRoute)
+    {
+        for (int i = 0; i < m_neighborAddrs.count(); i++)
+        {
+            AddrInfo addrInfo = m_neighborAddrs[i];
+            sendMessage(mesInf, addrInfo.m_addr, addrInfo.m_port);
+        }
+    }
+    else
+    {
+        int i = rand() % m_neighborAddrs.count();
+        AddrInfo addrInfo = m_neighborAddrs[i];
 
-    sendMessage(mesInf, addrInfo.m_addr, addrInfo.m_port);
+        sendMessage(mesInf, addrInfo.m_addr, addrInfo.m_port);
+    }
 }
 
 void NetSocket::sendStatusToRandNeighbor()
