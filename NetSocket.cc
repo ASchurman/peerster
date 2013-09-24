@@ -290,7 +290,10 @@ void NetSocket::sendToRandNeighbor(MessageInfo& mesInf)
         for (int i = 0; i < m_neighborAddrs.count(); i++)
         {
             AddrInfo addrInfo = m_neighborAddrs[i];
-            sendMessage(mesInf, addrInfo.m_addr, addrInfo.m_port);
+
+            // do not timeout on sending messages here, since we're sending
+            // the route rumor to everyone anyway
+            sendMessage(mesInf, addrInfo.m_addr, addrInfo.m_port, false);
         }
     }
     else
@@ -311,7 +314,9 @@ void NetSocket::sendStatusToRandNeighbor()
 }
 
 void NetSocket::sendMessage(MessageInfo& mesInf,
-                            QHostAddress address, int port)
+                            QHostAddress address,
+                            int port,
+                            bool startTimer)
 {
     QVariantMap varMap;
     if (!mesInf.m_isRoute) varMap.insert(CHAT_TEXT, mesInf.m_body);
@@ -329,8 +334,12 @@ void NetSocket::sendMessage(MessageInfo& mesInf,
     {
         addNeighbor(addrInfo);
     }
-    findNeighbor(addrInfo)->m_lastSent = mesInf;
-    findNeighbor(addrInfo)->startTimer();
+
+    if (startTimer)
+    {
+        findNeighbor(addrInfo)->m_lastSent = mesInf;
+        findNeighbor(addrInfo)->startTimer();
+    }
 }
 
 void NetSocket::sendStatus(QHostAddress address, int port)

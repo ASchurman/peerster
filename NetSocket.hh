@@ -24,7 +24,10 @@ public:
     void inputMessage(QString& message);
 
     void sendToRandNeighbor(MessageInfo& mesInf);
-    void sendMessage(MessageInfo& mesInf, QHostAddress addresss, int port);
+    void sendMessage(MessageInfo& mesInf,
+                     QHostAddress addresss,
+                    int port,
+                    bool startTimer = true);
     void sendStatus(QHostAddress address, int port);
 
     void sendPrivate(QString& dest, int hopLimit, QString& chatText);
