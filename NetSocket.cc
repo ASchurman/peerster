@@ -261,7 +261,16 @@ void NetSocket::gotReadyRead()
             else if (hopLimit - 1 > 0 && m_forward)
             {
                 qDebug() << "Routing private w/DEST = " << dest;
-                sendPrivate(dest, hopLimit - 1, chatText);
+
+                if (varMap.contains(ORIGIN))
+                {
+                    QString origin(varMap[ORIGIN].toString());
+                    sendPrivate(dest, hopLimit - 1, chatText, &origin);
+                }
+                else
+                {
+                    sendPrivate(dest, hopLimit - 1, chatText);
+                }
             }
         }
         else if (varMap.contains(WANT))
@@ -387,7 +396,10 @@ void NetSocket::sendMap(QVariantMap& varMap, AddrInfo& addr)
     }
 }
 
-void NetSocket::sendPrivate(QString& dest, int hopLimit, QString& chatText)
+void NetSocket::sendPrivate(QString& dest,
+                            int hopLimit,
+                            QString& chatText,
+                            QString* origin)
 {
     AddrInfo addr;
 
@@ -397,7 +409,8 @@ void NetSocket::sendPrivate(QString& dest, int hopLimit, QString& chatText)
         varMap.insert(DEST, dest);
         varMap.insert(HOP_LIMIT, hopLimit);
         varMap.insert(CHAT_TEXT, chatText);
-        varMap.insert(ORIGIN, m_hostName);
+
+        if (origin) varMap.insert(ORIGIN, *origin);
 
         sendMap(varMap, addr);
     }
@@ -411,7 +424,7 @@ void NetSocket::sendPrivate(QString& dest, int hopLimit, QString& chatText)
 void NetSocket::sendPrivate(QString& dest, QString& chatText)
 {
     GlobalChatDialog->printPrivate(chatText, m_hostName);
-    sendPrivate(dest, 10, chatText);
+    sendPrivate(dest, 10, chatText, &m_hostName);
 }
 
 void NetSocket::sendRandRouteRumor()

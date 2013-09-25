@@ -30,7 +30,10 @@ public:
                     bool startTimer = true);
     void sendStatus(QHostAddress address, int port);
 
-    void sendPrivate(QString& dest, int hopLimit, QString& chatText);
+    void sendPrivate(QString& dest,
+                     int hopLimit,
+                     QString& chatText,
+                     QString* origin = NULL);
     void sendPrivate(QString& dest, QString& chatText);
 
     void addNeighbor(AddrInfo addrInfo);
