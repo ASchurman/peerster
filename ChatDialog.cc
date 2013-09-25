@@ -98,13 +98,34 @@ void ChatDialog::printMessage(MessageInfo& mesInf)
 {
     if (!mesInf.m_isRoute)
     {
-        m_pChatView->append(mesInf.m_body);
+        QString seqNo;
+        seqNo.setNum(mesInf.m_seqNo);
+
+        QString chatText("[");
+        chatText.append(mesInf.m_host);
+        chatText.append(", ");
+        chatText.append(seqNo);
+        chatText.append("] ");
+        chatText.append(mesInf.m_body);
+
+        m_pChatView->append(chatText);
     }
 }
 
 void ChatDialog::printPrivate(QString& chatText)
 {
-    m_pChatView->append(chatText);
+    QString sender("Unknown");
+    printPrivate(chatText, sender);
+}
+
+void ChatDialog::printPrivate(QString& chatText, QString& sender)
+{
+    QString text("[");
+    text.append(sender);
+    text.append(", priv] ");
+    text.append(chatText);
+
+    m_pChatView->append(text);
 }
 
 void ChatDialog::processNeighborLine()

@@ -243,7 +243,20 @@ void NetSocket::gotReadyRead()
             if (dest == m_hostName)
             {
                 // this private message is meant for me
-                GlobalChatDialog->printPrivate(chatText);
+                if (varMap.contains(ORIGIN))
+                {
+                    QString origin(varMap[ORIGIN].toString());
+
+                    // don't print a private message I sent to myself
+                    if (origin != m_hostName)
+                    {
+                        GlobalChatDialog->printPrivate(chatText, origin);
+                    }
+                }
+                else
+                {
+                    GlobalChatDialog->printPrivate(chatText);
+                }
             }
             else if (hopLimit - 1 > 0 && m_forward)
             {
@@ -397,7 +410,7 @@ void NetSocket::sendPrivate(QString& dest, int hopLimit, QString& chatText)
 
 void NetSocket::sendPrivate(QString& dest, QString& chatText)
 {
-    GlobalChatDialog->printPrivate(chatText);
+    GlobalChatDialog->printPrivate(chatText, m_hostName);
     sendPrivate(dest, 10, chatText);
 }
 

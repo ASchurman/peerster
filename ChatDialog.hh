@@ -20,6 +20,7 @@ public slots:
     void gotTextChanged();
     void printMessage(MessageInfo& mesInf);
     void printPrivate(QString& chatText);
+    void printPrivate(QString& chatText, QString& sender);
     void processNeighborLine();
     void addOriginForPrivates(QString& host);
 
