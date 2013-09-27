@@ -27,18 +27,26 @@ ChatDialog::ChatDialog()
 
     // a line in which the user can add new neighbors
     m_pNeighbor = new QLineEdit(this);
+    m_pNeighbor->setPlaceholderText("Add neighbor...");
 
     // List of origins to send a private message to, with an option to send to
     // everyone using the gossip protocol
     m_pSendOptions = new QListWidget();
     m_pSendOptions->addItem(BROADCAST);
+    m_pSendOptions->setCurrentRow(0);
 
+    // top-level layout that contains child layouts
     QHBoxLayout* topLayout = new QHBoxLayout();
 
+    // layout for the left side of the window, containing the chat textbox
+    // and the widgets to add new neighbors
     m_pChatLayout = new QVBoxLayout();
-    m_pChatLayout->addWidget(m_pChatView);
     m_pChatLayout->addWidget(m_pNeighbor);
+    m_pChatLayout->addWidget(m_pChatView);
 
+    // layout for the right side of the window, containing the list of nodes
+    // to which private messages can be sent and the textbox in which messages
+    // are composed
     m_pSendLayout = new QVBoxLayout();
     m_pSendLayout->addWidget(m_pSendOptions);
     m_pSendLayout->addWidget(m_pMessageBox);
