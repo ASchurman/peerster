@@ -6,6 +6,7 @@
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include <QListWidget>
+#include <QPushButton>
 
 #include "Common.hh"
 
@@ -23,16 +24,21 @@ public slots:
     void printPrivate(QString& chatText, QString& sender);
     void processNeighborLine();
     void addOriginForPrivates(QString& host);
+    void showShareFileDialog();
 
 private:
     QVBoxLayout* m_pChatLayout;
     QVBoxLayout* m_pSendLayout;
+    QVBoxLayout* m_pFileLayout;
 
     QTextEdit* m_pChatView;
     QLineEdit* m_pNeighbor;
 
     QListWidget* m_pSendOptions;
     QTextEdit* m_pMessageBox;
+
+    QPushButton* m_pShareFileButton;
+    QListWidget* m_pSharedFiles;
 };
 
 extern ChatDialog* GlobalChatDialog;

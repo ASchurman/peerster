@@ -1,9 +1,11 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QFileDialog>
 #include <QDebug>
 
 #include "ChatDialog.hh"
 #include "NetSocket.hh"
+#include "FileStore.hh"
 
 #define BROADCAST "Send to All"
 
@@ -35,6 +37,12 @@ ChatDialog::ChatDialog()
     m_pSendOptions->addItem(BROADCAST);
     m_pSendOptions->setCurrentRow(0);
 
+    // button to open file dialog for sharing a new file
+    m_pShareFileButton = new QPushButton("Share File...", this);
+
+    // List of all files currently being shared by this node
+    m_pSharedFiles = new QListWidget();
+
     // top-level layout that contains child layouts
     QHBoxLayout* topLayout = new QHBoxLayout();
 
@@ -44,15 +52,23 @@ ChatDialog::ChatDialog()
     m_pChatLayout->addWidget(m_pNeighbor);
     m_pChatLayout->addWidget(m_pChatView);
 
-    // layout for the right side of the window, containing the list of nodes
+    // layout for the middle of the window, containing the list of nodes
     // to which private messages can be sent and the textbox in which messages
     // are composed
     m_pSendLayout = new QVBoxLayout();
     m_pSendLayout->addWidget(m_pSendOptions);
     m_pSendLayout->addWidget(m_pMessageBox);
 
+    // layout for the right side of the window, containing widgets for file-
+    // sharing
+    m_pFileLayout = new QVBoxLayout();
+    m_pFileLayout->addWidget(m_pSharedFiles);
+    m_pFileLayout->addWidget(m_pShareFileButton);
+
+    // Add layouts to top-level layout
     topLayout->addLayout(m_pChatLayout);
     topLayout->addLayout(m_pSendLayout);
+    topLayout->addLayout(m_pFileLayout);
     setLayout(topLayout);
 
     // Register a callback on the m_pMessageBox's textChanged signal
@@ -64,6 +80,11 @@ ChatDialog::ChatDialog()
     // register the new neighbor
     connect(m_pNeighbor, SIGNAL(returnPressed()),
             this, SLOT(processNeighborLine()));
+
+    // Connect share file button signal to function to show the share file
+    // dialog
+    connect(m_pShareFileButton, SIGNAL(clicked()),
+            this, SLOT(showShareFileDialog()));
 }
 
 void ChatDialog::gotTextChanged()
@@ -146,4 +167,22 @@ void ChatDialog::processNeighborLine()
 void ChatDialog::addOriginForPrivates(QString& host)
 {
     m_pSendOptions->addItem(host);
+}
+
+void ChatDialog::showShareFileDialog()
+{
+    QStringList shareFiles = QFileDialog::getOpenFileNames(
+                                 this,
+                                 "Share Files");
+
+    for (int i = 0; i < shareFiles.size(); i++)
+    {
+        qDebug() << "Sharing: " << shareFiles[i];
+
+        if (GlobalFiles->addFile(shareFiles[i]))
+        {
+            QStringList strList = shareFiles[i].split('/');
+            m_pSharedFiles->addItem(strList.last());
+        }
+    }
 }

@@ -8,6 +8,8 @@ DEPENDPATH += .
 INCLUDEPATH += .
 QT += network
 
+CONFIG += crypto
+
 # Input
 SOURCES += main.cc
 
@@ -27,3 +29,9 @@ SOURCES += Monger.cc
 
 HEADERS += RouteTable.hh
 SOURCES += RouteTable.cc
+
+HEADERS += FileData.hh
+SOURCES += FileData.cc
+
+HEADERS += FileStore.hh
+SOURCES += FileStore.cc

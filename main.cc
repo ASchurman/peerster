@@ -2,15 +2,19 @@
 
 #include <QApplication>
 #include <QDebug>
+#include <QtCrypto>
 
 #include "ChatDialog.hh"
 #include "NetSocket.hh"
 #include "MessageStore.hh"
 #include "RouteTable.hh"
 #include "Common.hh"
+#include "FileStore.hh"
 
 int main(int argc, char **argv)
 {
+    QCA::Initializer qcainit;
+
     // Initialize rand
     srand(time(NULL));
 
@@ -22,6 +26,7 @@ int main(int argc, char **argv)
     GlobalChatDialog = new ChatDialog();
     GlobalMessages = new MessageStore();
     GlobalRoutes = new RouteTable();
+    GlobalFiles = new FileStore();
 
     // Create an initial chat dialog window
     GlobalChatDialog->show();
