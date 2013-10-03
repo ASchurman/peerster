@@ -42,11 +42,11 @@ public slots:
 private:
     // Contains the FileData for each file being shared on the network.
     // Keyed by the file's ID.
-    QHash<QByteArray, FileData> m_sharingFiles;
+    QHash<QByteArray, FileData*> m_sharingFiles;
 
     // Contains the FileData for each file being downloaded.
     // Keyed by the file's ID.
-    QHash<QByteArray, FileData> m_downloadingFiles;
+    QHash<QByteArray, FileData*> m_downloadingFiles;
 };
 
 extern FileStore* GlobalFiles;

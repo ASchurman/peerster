@@ -1,15 +1,19 @@
 #ifndef FILE_DATA_HH
 #define FILE_DATA_HH
 
+#include <QObject>
 #include <QString>
 #include <QByteArray>
 #include <QHash>
 #include <QList>
 #include <QSet>
+#include <QTimer>
 
 // Contains data for a single file being shared on the network
-class FileData
+class FileData : public QObject
 {
+    Q_OBJECT
+
 public:
     FileData() { }
 
@@ -79,12 +83,17 @@ public:
     // SHA-256 hash of m_blocklist
     QByteArray m_fileId;
 
+public slots:
+    void timeout();
+
 private:
     // Saves the downloaded file. True if successful.
     bool save();
 
-    // TODO add timer for retransmitting last request
-    // also add field for what the last request was
+    void setupTimer();
+
+    QTimer* m_pTimer;
+    int m_timeouts;
 };
 
 #endif

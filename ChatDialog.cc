@@ -52,7 +52,7 @@ ChatDialog::ChatDialog()
 
     m_pSearchResults = new QListWidget();
 
-    m_pCancelSearchButton = new QPushButton("Cancel Search");
+    m_pCancelSearchButton = new QPushButton("Clear Search");
 
     // List of all files currently being shared by this node
     m_pSharedFiles = new QListWidget();
@@ -252,10 +252,12 @@ void ChatDialog::newDownloadFile()
     }
 
     QString fileName = saveFileString();
+    if (fileName.isEmpty()) return;
 
     QString hashStr = QInputDialog::getText(this,
                                             "File ID",
                                             "Enter the SHA-256 hash of the blocklist:");
+    if (hashStr.isEmpty()) return;
     QByteArray hash = QByteArray::fromHex(hashStr.toUtf8());
 
     qDebug() << "Host: " << host;
@@ -275,6 +277,8 @@ void ChatDialog::searchForFile()
 
     // Create Search
     QString searchStr = QInputDialog::getText(this, "Search", "Enter search terms:");
+    if (searchStr.isEmpty()) return;
+
     m_pSearch = new Search(searchStr);
 
     // Connect GlobalSocket got search result signal to Search

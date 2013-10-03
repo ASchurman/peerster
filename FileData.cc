@@ -7,6 +7,7 @@
 
 #define BLOCKSIZE (8192)
 #define SHA_SIZE (32)
+#define MAX_TIMEOUTS (10)
 
 FileData::FileData(QString& fileName, QByteArray& fileId, QString& host)
 {
@@ -17,11 +18,21 @@ FileData::FileData(QString& fileName, QByteArray& fileId, QString& host)
     m_name = fileName;
     m_size = -1;
     m_host = host;
+    setupTimer();
 }
 
 FileData::FileData(QString& fileName)
 {
     open(fileName);
+    setupTimer();
+}
+
+void FileData::setupTimer()
+{
+    m_timeouts = 0;
+    m_pTimer = new QTimer(this);
+    m_pTimer->setInterval(2000);
+    connect(m_pTimer, SIGNAL(timeout()), this, SLOT(timeout()));
 }
 
 bool FileData::open(QString& fileName)
@@ -131,6 +142,8 @@ void FileData::requestBlock()
     {
         qDebug() << "REQUESTING BLOCKLIST: " << m_name;
         GlobalSocket->requestBlock(m_fileId, m_host);
+        m_timeouts = 0;
+        m_pTimer->start();
     }
     else
     {
@@ -143,6 +156,8 @@ void FileData::requestBlock()
             {
                 qDebug() << "    REQUESTING BLOCK " << m_blockHash[allHashes[i]];
                 GlobalSocket->requestBlock(allHashes[i], m_host);
+                m_timeouts = 0;
+                m_pTimer->start();
                 return;
             }
         }
@@ -168,6 +183,7 @@ bool FileData::addBlock(QByteArray& hash, QByteArray& block)
     // Check if it's the blocklist before checking if it's a normal block
     if (hash == m_fileId)
     {
+        m_pTimer->stop();
         qDebug() << "    GOT BLOCKLIST for file: " << m_name;
         m_blocklist = block;
 
@@ -193,6 +209,8 @@ bool FileData::addBlock(QByteArray& hash, QByteArray& block)
     if (m_blockHash.contains(hash)
             && !m_obtainedBlocks.contains(m_blockHash[hash]))
     {
+        m_pTimer->stop();
+
         // Add the block to our data and obtained block set
         qDebug() << "    GOT BLOCK: " << m_blockHash[hash];
         m_data[m_blockHash[hash]] = block;
@@ -247,4 +265,24 @@ QString FileData::getFriendlyName()
 {
     QStringList strList = m_name.split('/');
     return strList.last();
+}
+
+void FileData::timeout()
+{
+    m_pTimer->stop();
+    m_timeouts++;
+
+    if (m_timeouts > MAX_TIMEOUTS)
+    {
+        qDebug() << "Giving up on downloading file: " << m_name;
+    }
+    else if (m_isSharing)
+    {
+        qDebug() << "Timeout on a FileData being shared: " << m_name;
+    }
+    else
+    {
+        qDebug() << "TIMEOUT. Resending a request: " << m_name;
+        requestBlock();
+    }
 }
