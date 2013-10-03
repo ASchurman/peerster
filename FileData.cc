@@ -205,6 +205,11 @@ bool FileData::addBlock(QByteArray& hash, QByteArray& block)
             save();
             return true;
         }
+        else
+        {
+            requestBlock();
+            return false;
+        }
     }
     else if (!m_blockHash.contains(hash))
     {
