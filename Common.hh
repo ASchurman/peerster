@@ -4,6 +4,7 @@
 #include <QString>
 #include <QHostAddress>
 #include <QHostInfo>
+#include <QByteArray>
 
 class MessageInfo
 {
@@ -53,6 +54,97 @@ public:
     bool m_hasLastRoute;
     quint32 m_lastIP;
     quint16 m_lastPort;
+};
+
+#define PRIV_UNDEF (0)
+#define PRIV_CHAT (1)
+#define PRIV_BLOCKREQ (2)
+#define PRIV_BLOCKREP (3)
+
+class PrivateMessage
+{
+public:
+    PrivateMessage() { m_type = PRIV_UNDEF; }
+
+    PrivateMessage(QString& dest,
+                   int hopLimit,
+                   QString& text,
+                   QString origin = QString())
+    {
+        chat(dest, hopLimit, text, origin);
+    }
+    void chat(QString& dest,
+              int hopLimit,
+              QString& text,
+              QString origin = QString())
+    {
+        m_type = PRIV_CHAT;
+        m_dest = dest;
+        m_hopLimit = hopLimit;
+        m_text = text;
+        m_origin = origin;
+    }
+
+    PrivateMessage(QString& dest,
+                   int hopLimit,
+                   QByteArray& blockReq,
+                   QString origin = QString())
+    {
+        blockRequest(dest, hopLimit, blockReq, origin);
+    }
+    void blockRequest(QString& dest,
+                      int hopLimit,
+                      QByteArray& blockReq,
+                      QString origin = QString())
+    {
+        m_type = PRIV_BLOCKREQ;
+        m_dest = dest;
+        m_hopLimit = hopLimit;
+        m_hash = blockReq;
+        m_origin = origin;
+    }
+
+    PrivateMessage(QString& dest,
+                   int hopLimit,
+                   QByteArray& blockRep,
+                   QByteArray& data,
+                   QString origin = QString())
+    {
+        blockReply(dest, hopLimit, blockRep, data, origin);
+    }
+    void blockReply(QString& dest,
+                    int hopLimit,
+                    QByteArray& blockRep,
+                    QByteArray& data,
+                    QString origin = QString())
+    {
+        m_type = PRIV_BLOCKREP;
+        m_dest = dest;
+        m_hopLimit = hopLimit;
+        m_hash = blockRep;
+        m_data = data;
+        m_origin = origin;
+    }
+
+    // equal to one of the PRIV macros above
+    int m_type;
+
+    // Defined for all private messages
+    QString m_dest;
+    int m_hopLimit;
+
+    // Defined for chat privates
+    QString m_text;
+
+    // Defined for BLOCKREQ and BLOCKREP
+    QByteArray m_hash;
+
+    // Defined for PRIV_BLOCKREP
+    QByteArray m_data;
+
+    // ORIGIN value which may not be defined for incoming messages
+    bool hasOrigin() { return !m_origin.isEmpty(); }
+    QString m_origin;
 };
 
 class AddrInfo

@@ -2,6 +2,8 @@
 #include <QHBoxLayout>
 #include <QFileDialog>
 #include <QDebug>
+#include <QInputDialog>
+#include <QByteArray>
 
 #include "ChatDialog.hh"
 #include "NetSocket.hh"
@@ -40,6 +42,9 @@ ChatDialog::ChatDialog()
     // button to open file dialog for sharing a new file
     m_pShareFileButton = new QPushButton("Share File...", this);
 
+    // button to download a file
+    m_pDownloadFileButton = new QPushButton("Download File from Selected Peer...", this);
+
     // List of all files currently being shared by this node
     m_pSharedFiles = new QListWidget();
 
@@ -64,6 +69,7 @@ ChatDialog::ChatDialog()
     m_pFileLayout = new QVBoxLayout();
     m_pFileLayout->addWidget(m_pSharedFiles);
     m_pFileLayout->addWidget(m_pShareFileButton);
+    m_pFileLayout->addWidget(m_pDownloadFileButton);
 
     // Add layouts to top-level layout
     topLayout->addLayout(m_pChatLayout);
@@ -85,6 +91,9 @@ ChatDialog::ChatDialog()
     // dialog
     connect(m_pShareFileButton, SIGNAL(clicked()),
             this, SLOT(showShareFileDialog()));
+
+    connect(m_pDownloadFileButton, SIGNAL(clicked()),
+            this, SLOT(newDownloadFile()));
 }
 
 void ChatDialog::gotTextChanged()
@@ -157,6 +166,26 @@ void ChatDialog::printPrivate(QString& chatText, QString& sender)
     m_pChatView->append(text);
 }
 
+void ChatDialog::printPrivate(PrivateMessage& priv)
+{
+    // We can only print chat messages
+    if (priv.m_type == PRIV_CHAT)
+    {
+        if (priv.hasOrigin())
+        {
+            printPrivate(priv.m_text, priv.m_origin);
+        }
+        else
+        {
+            printPrivate(priv.m_text);
+        }
+    }
+    else
+    {
+        qDebug() << "Trying to print a non-chat private message!!!";
+    }
+}
+
 void ChatDialog::processNeighborLine()
 {
     QString str = m_pNeighbor->displayText();
@@ -179,10 +208,37 @@ void ChatDialog::showShareFileDialog()
     {
         qDebug() << "Sharing: " << shareFiles[i];
 
-        if (GlobalFiles->addFile(shareFiles[i]))
+        if (GlobalFiles->addSharingFile(shareFiles[i]))
         {
             QStringList strList = shareFiles[i].split('/');
             m_pSharedFiles->addItem(strList.last());
         }
     }
+}
+
+void ChatDialog::newDownloadFile()
+{
+    QString host = m_pSendOptions->currentItem()->text();
+    if (host == BROADCAST)
+    {
+        qDebug() << "Select a peer from whom to download; cannot download from 'Send to All'";
+        return;
+    }
+    else if (host == GlobalSocket->m_hostName)
+    {
+        qDebug() << "Cannot download a file from self";
+        return;
+    }
+
+    QString fileName = QFileDialog::getSaveFileName(this);
+
+    QString hashStr = QInputDialog::getText(this,
+                                            "File ID",
+                                            "Enter the SHA-256 hash of the blocklist:");
+    QByteArray hash = QByteArray::fromHex(hashStr.toUtf8());
+
+    qDebug() << "Host: " << host;
+    qDebug() << "Hash: " << hash.toHex();
+
+    GlobalFiles->addDownloadFile(fileName, hash, host);
 }

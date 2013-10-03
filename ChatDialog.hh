@@ -22,9 +22,11 @@ public slots:
     void printMessage(MessageInfo& mesInf);
     void printPrivate(QString& chatText);
     void printPrivate(QString& chatText, QString& sender);
+    void printPrivate(PrivateMessage& priv);
     void processNeighborLine();
     void addOriginForPrivates(QString& host);
     void showShareFileDialog();
+    void newDownloadFile();
 
 private:
     QVBoxLayout* m_pChatLayout;
@@ -39,6 +41,7 @@ private:
 
     QPushButton* m_pShareFileButton;
     QListWidget* m_pSharedFiles;
+    QPushButton* m_pDownloadFileButton;
 };
 
 extern ChatDialog* GlobalChatDialog;

@@ -6,6 +6,7 @@
 #include <QMap>
 #include <QList>
 #include <QTimer>
+#include <QByteArray>
 
 #include "Common.hh"
 #include "Monger.hh"
@@ -30,10 +31,7 @@ public:
                     bool startTimer = true);
     void sendStatus(QHostAddress address, int port);
 
-    void sendPrivate(QString& dest,
-                     int hopLimit,
-                     QString& chatText,
-                     QString* origin = NULL);
+    // Send a private message originating from this node
     void sendPrivate(QString& dest, QString& chatText);
 
     void addNeighbor(AddrInfo addrInfo);
@@ -41,6 +39,10 @@ public:
 
     void noForward();
     bool m_forward;
+
+    void requestBlock(QByteArray& hash, QString& host);
+
+    QString m_hostName;
 
 public slots:
     void gotReadyRead();
@@ -54,6 +56,8 @@ signals:
     void messageReceived(MessageInfo& mesInf);
 
 private:
+    void sendPrivate(PrivateMessage& priv);
+
     void sendMap(QVariantMap& varMap, QHostAddress address, int port);
     void sendMap(QVariantMap& varMap, AddrInfo& addr);
 
@@ -66,7 +70,6 @@ private:
     QList<AddrInfo> m_pendingAddrs;
 
     int m_myPortMin, m_myPortMax, m_myPort;
-    QString m_hostName;
     int m_seqNo;
 
     // timer for sending a status message to a random neighbor

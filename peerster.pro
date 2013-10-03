@@ -15,7 +15,7 @@ SOURCES += main.cc
 
 HEADERS += Common.hh
 
-HEADERS += Netsocket.hh
+HEADERS += NetSocket.hh
 SOURCES += NetSocket.cc
 
 HEADERS += ChatDialog.hh

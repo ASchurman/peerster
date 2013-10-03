@@ -6,6 +6,7 @@
 #include "MessageStore.hh"
 #include "RouteTable.hh"
 #include "ChatDialog.hh"
+#include "FileStore.hh"
 
 NetSocket* GlobalSocket;
 
@@ -18,6 +19,14 @@ NetSocket* GlobalSocket;
 #define HOP_LIMIT "HopLimit"
 #define LAST_IP "LastIP"
 #define LAST_PORT "LastPort"
+#define BLOCK_REQ "BlockRequest"
+#define BLOCK_REP "BlockReply"
+#define DATA "Data"
+#define SEARCH "Search"
+#define BUDGET "Budget"
+#define SEARCH_REP "SearchReply"
+#define MATCH_NAMES "MatchNames"
+#define MATCH_IDS "MatchIDs"
 
 NetSocket::NetSocket()
 {
@@ -232,45 +241,91 @@ void NetSocket::gotReadyRead()
             findNeighbor(addrInfo)->receiveMessage(mesInf, addrInfo, isDirect);
         }
         else if (varMap.contains(DEST)
-                 && varMap.contains(HOP_LIMIT)
-                 && varMap.contains(CHAT_TEXT))
+                 && varMap.contains(HOP_LIMIT))
         {
             // received private message!
-            QString chatText(varMap[CHAT_TEXT].toString());
+
+            // Get DEST, HOP_LIMIT, and ORIGIN
             QString dest(varMap[DEST].toString());
             int hopLimit = varMap[HOP_LIMIT].toInt();
 
+            QString origin;
+            if (varMap.contains(ORIGIN)) origin = varMap[ORIGIN].toString();
+
+            // Construct PrivateMessage object by looking at the rest of the map
+            PrivateMessage priv;
+            if (varMap.contains(CHAT_TEXT))
+            {
+                QString chatText(varMap[CHAT_TEXT].toString());
+                priv.chat(dest, hopLimit, chatText, origin);
+            }
+            else if (varMap.contains(BLOCK_REQ))
+            {
+                QByteArray blockReq = varMap[BLOCK_REQ].toByteArray();
+                priv.blockRequest(dest, hopLimit, blockReq, origin);
+            }
+            else if (varMap.contains(BLOCK_REP))
+            {
+                QByteArray blockRep = varMap[BLOCK_REP].toByteArray();
+                QByteArray data = varMap[DATA].toByteArray();
+                priv.blockReply(dest, hopLimit, blockRep, data, origin);
+            }
+            else
+            {
+                qDebug() << "Received private without chat, blockrep, or blockreq";
+                return;
+            }
+
+            // Process the PrivateMessage we constructed
             if (dest == m_hostName)
             {
                 // this private message is meant for me
-                if (varMap.contains(ORIGIN))
+                switch(priv.m_type)
                 {
-                    QString origin(varMap[ORIGIN].toString());
-
-                    // don't print a private message I sent to myself
-                    if (origin != m_hostName)
+                    case PRIV_CHAT:
                     {
-                        GlobalChatDialog->printPrivate(chatText, origin);
+                        // don't print a private message that I send to myself;
+                        // it already got printed when I sent it
+                        if (priv.m_origin != m_hostName)
+                        {
+                            GlobalChatDialog->printPrivate(priv);
+                        }
+                        break;
+                    }
+                    case PRIV_BLOCKREQ:
+                    {
+                        qDebug() << "Got a block request";
+                        QByteArray block;
+                        if (GlobalFiles->findBlock(priv.m_hash, block));
+                        {
+                            PrivateMessage privReply(priv.m_origin,
+                                                     10,
+                                                     priv.m_hash,
+                                                     block,
+                                                     m_hostName);
+                            sendPrivate(privReply);
+                        }
+                        break;
+                    }
+                    case PRIV_BLOCKREP:
+                    {
+                        GlobalFiles->addBlock(priv.m_hash, priv.m_data);
+                        break;
+                    }
+                    default:
+                    {
+                        qDebug() << "Trying to process undef PrivateMessage";
+                        break;
                     }
                 }
-                else
-                {
-                    GlobalChatDialog->printPrivate(chatText);
-                }
+                
             }
             else if (hopLimit - 1 > 0 && m_forward)
             {
+                // Route the PrivateMessage to another host
+                priv.m_hopLimit--;
                 qDebug() << "Routing private w/DEST = " << dest;
-
-                if (varMap.contains(ORIGIN))
-                {
-                    QString origin(varMap[ORIGIN].toString());
-                    sendPrivate(dest, hopLimit - 1, chatText, &origin);
-                }
-                else
-                {
-                    sendPrivate(dest, hopLimit - 1, chatText);
-                }
+                sendPrivate(priv);
             }
         }
         else if (varMap.contains(WANT))
@@ -396,35 +451,48 @@ void NetSocket::sendMap(QVariantMap& varMap, AddrInfo& addr)
     }
 }
 
-void NetSocket::sendPrivate(QString& dest,
-                            int hopLimit,
-                            QString& chatText,
-                            QString* origin)
+void NetSocket::sendPrivate(PrivateMessage& priv)
 {
     AddrInfo addr;
 
-    if (GlobalRoutes->getNextHop(dest, addr))
+    if (GlobalRoutes->getNextHop(priv.m_dest, addr))
     {
         QVariantMap varMap;
-        varMap.insert(DEST, dest);
-        varMap.insert(HOP_LIMIT, hopLimit);
-        varMap.insert(CHAT_TEXT, chatText);
+        varMap.insert(DEST, priv.m_dest);
+        varMap.insert(HOP_LIMIT, priv.m_hopLimit);
+        if (priv.hasOrigin()) varMap.insert(ORIGIN, priv.m_origin);
 
-        if (origin) varMap.insert(ORIGIN, *origin);
+        switch(priv.m_type)
+        {
+            case PRIV_CHAT:
+                varMap.insert(CHAT_TEXT, priv.m_text);
+                break;
+            case PRIV_BLOCKREQ:
+                varMap.insert(BLOCK_REQ, priv.m_hash);
+                break;
+            case PRIV_BLOCKREP:
+                varMap.insert(BLOCK_REP, priv.m_hash);
+                varMap.insert(DATA, priv.m_data);
+                break;
+            default:
+                qDebug() << "Trying to send undef PrivateMessage";
+        }
 
         sendMap(varMap, addr);
     }
     else
     {
         // There's no route table entry for dest
-        qDebug() << "Cannot send private message to " << dest;
+        qDebug() << "Cannot send private message to " << priv.m_dest;
     }
 }
 
+// send a private message originating from this node
 void NetSocket::sendPrivate(QString& dest, QString& chatText)
 {
-    GlobalChatDialog->printPrivate(chatText, m_hostName);
-    sendPrivate(dest, 10, chatText, &m_hostName);
+    PrivateMessage priv(dest, 10, chatText, m_hostName);
+    GlobalChatDialog->printPrivate(priv);
+    sendPrivate(priv);
 }
 
 void NetSocket::sendRandRouteRumor()
@@ -440,4 +508,10 @@ void NetSocket::sendRandRouteRumor()
 
     GlobalMessages->recordMessage(mesInf, addr, true/*isDirect*/);
     sendToRandNeighbor(mesInf);
+}
+
+void NetSocket::requestBlock(QByteArray& hash, QString& host)
+{
+    PrivateMessage priv(host, 10, hash, m_hostName);
+    sendPrivate(priv);
 }
