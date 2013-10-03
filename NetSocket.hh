@@ -31,8 +31,16 @@ public:
                     bool startTimer = true);
     void sendStatus(QHostAddress address, int port);
 
-    // Send a private message originating from this node
+    // Send a chat private message originating from this node
     void sendPrivate(QString& dest, QString& chatText);
+
+    void sendSearchRequest(QString& searchTerms,
+                           int budget,
+                           QString origin = QString());
+    void sendSearchReply(QString& searchTerms,
+                         QList<QString>& fileNames,
+                         QList<QByteArray>& hashes,
+                         QString& dest);
 
     void addNeighbor(AddrInfo addrInfo);
     void addNeighbor(QString& hostPortStr);
@@ -54,8 +62,10 @@ public slots:
 
 signals:
     void messageReceived(MessageInfo& mesInf);
+    void gotSearchResult(QString& terms, QString& fileName, QByteArray& hash, QString& host);
 
 private:
+    // Send a private message of any type
     void sendPrivate(PrivateMessage& priv);
 
     void sendMap(QVariantMap& varMap, QHostAddress address, int port);

@@ -1,4 +1,5 @@
 #include <QDebug>
+#include <QStringList>
 
 #include "FileStore.hh"
 
@@ -68,4 +69,29 @@ void FileStore::addBlock(QByteArray &blockHash, QByteArray &data)
             }
         }
     }
+}
+
+bool FileStore::findFile(QString &searchTerms,
+                         QList<QString> &outFileNames,
+                         QList<QByteArray> &outFileIds)
+{
+    QStringList terms = searchTerms.split(" ", QString::SkipEmptyParts);
+    bool found = false;
+
+    QList<FileData> files = m_sharingFiles.values();
+    for (int i = 0; i < files.count(); i++)
+    {
+        QString friendlyName = files[i].getFriendlyName();
+        for (int j = 0; j < terms.count(); j++)
+        {
+            if (friendlyName.contains(terms[j], Qt::CaseInsensitive))
+            {
+                found = true;
+                outFileNames.append(friendlyName);
+                outFileIds.append(files[i].m_fileId);
+                break;
+            }
+        }
+    }
+    return found;
 }

@@ -5,6 +5,7 @@
 #include <QHostAddress>
 #include <QHostInfo>
 #include <QByteArray>
+#include <QVariantList>
 
 class MessageInfo
 {
@@ -60,9 +61,11 @@ public:
 #define PRIV_CHAT (1)
 #define PRIV_BLOCKREQ (2)
 #define PRIV_BLOCKREP (3)
+#define PRIV_SEARCHREP (4)
 
 class PrivateMessage
 {
+    // TODO clean this up by moving to a new file and subclassing priv types
 public:
     PrivateMessage() { m_type = PRIV_UNDEF; }
 
@@ -126,6 +129,31 @@ public:
         m_origin = origin;
     }
 
+    PrivateMessage(QString& dest,
+                   int hopLimit,
+                   QString& searchTerms,
+                   QVariantList& fileNames,
+                   QVariantList& hashes,
+                   QString& origin)
+    {
+        searchReply(dest, hopLimit, searchTerms, fileNames, hashes, origin);
+    }
+    void searchReply(QString& dest,
+                     int hopLimit,
+                     QString& searchTerms,
+                     QVariantList& fileNames,
+                     QVariantList& hashes,
+                     QString& origin)
+    {
+        m_type = PRIV_SEARCHREP;
+        m_dest = dest;
+        m_hopLimit = hopLimit;
+        m_origin = origin;
+        m_resultFileNames = fileNames;
+        m_resultHashes = hashes;
+        m_searchTerms = searchTerms;
+    }
+
     // equal to one of the PRIV macros above
     int m_type;
 
@@ -141,6 +169,11 @@ public:
 
     // Defined for PRIV_BLOCKREP
     QByteArray m_data;
+
+    // Defined for PRIV_SEARCHREP
+    QString m_searchTerms;
+    QVariantList m_resultFileNames;
+    QVariantList m_resultHashes;
 
     // ORIGIN value which may not be defined for incoming messages
     bool hasOrigin() { return !m_origin.isEmpty(); }

@@ -5,6 +5,7 @@
 #include <QString>
 #include <QHash>
 #include <QByteArray>
+#include <QList>
 
 #include "FileData.hh"
 
@@ -21,6 +22,13 @@ public:
 
     // Returns the block associated with the given hash.
     bool findBlock(QByteArray& hash, QByteArray& outBlock);
+
+    // Searches files being shared by this host for fileNames containing one
+    // of the space-separated search terms in searchTerms. Populates outFileIds
+    // with the fileIds of matching files. Returns TRUE if any files match.
+    bool findFile(QString& searchTerms,
+                  QList<QString>& outFileNames,
+                  QList<QByteArray>& outFileIds);
 
 public slots:
     // Add a file to download

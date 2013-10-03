@@ -17,6 +17,8 @@ ChatDialog::ChatDialog()
 {
     setWindowTitle("Peerster");
 
+    m_pSearch = NULL;
+
     // Read-only text box where we display messages from everyone.
     // This widget expands both horizontally and vertically.
     m_pChatView = new QTextEdit(this);
@@ -45,6 +47,13 @@ ChatDialog::ChatDialog()
     // button to download a file
     m_pDownloadFileButton = new QPushButton("Download File from Selected Peer...", this);
 
+    // button to search for a file
+    m_pSearchFileButton = new QPushButton("Search for File...", this);
+
+    m_pSearchResults = new QListWidget();
+
+    m_pCancelSearchButton = new QPushButton("Cancel Search");
+
     // List of all files currently being shared by this node
     m_pSharedFiles = new QListWidget();
 
@@ -70,6 +79,9 @@ ChatDialog::ChatDialog()
     m_pFileLayout->addWidget(m_pSharedFiles);
     m_pFileLayout->addWidget(m_pShareFileButton);
     m_pFileLayout->addWidget(m_pDownloadFileButton);
+    m_pFileLayout->addWidget(m_pSearchResults);
+    m_pFileLayout->addWidget(m_pSearchFileButton);
+    m_pFileLayout->addWidget(m_pCancelSearchButton);
 
     // Add layouts to top-level layout
     topLayout->addLayout(m_pChatLayout);
@@ -94,6 +106,15 @@ ChatDialog::ChatDialog()
 
     connect(m_pDownloadFileButton, SIGNAL(clicked()),
             this, SLOT(newDownloadFile()));
+
+    connect(m_pSearchFileButton, SIGNAL(clicked()),
+            this, SLOT(searchForFile()));
+
+    connect(m_pCancelSearchButton, SIGNAL(clicked()),
+            this, SLOT(cancelSearch()));
+
+    connect(m_pSearchResults, SIGNAL(itemDoubleClicked(QListWidgetItem*)),
+            this, SLOT(searchResultDoubleClicked(QListWidgetItem*)));
 }
 
 void ChatDialog::gotTextChanged()
@@ -230,7 +251,7 @@ void ChatDialog::newDownloadFile()
         return;
     }
 
-    QString fileName = QFileDialog::getSaveFileName(this);
+    QString fileName = saveFileString();
 
     QString hashStr = QInputDialog::getText(this,
                                             "File ID",
@@ -241,4 +262,81 @@ void ChatDialog::newDownloadFile()
     qDebug() << "Hash: " << hash.toHex();
 
     GlobalFiles->addDownloadFile(fileName, hash, host);
+}
+
+void ChatDialog::searchForFile()
+{
+    // Check if we have a search already going; only run 1 search at a time
+    if (m_pSearch)
+    {
+        qDebug() << "WE ALREADY HAVE SEARCH RUNNING";
+        return;
+    }
+
+    // Create Search
+    QString searchStr = QInputDialog::getText(this, "Search", "Enter search terms:");
+    m_pSearch = new Search(searchStr);
+
+    // Connect GlobalSocket got search result signal to Search
+    connect(GlobalSocket, SIGNAL(gotSearchResult(QString&,QString&,QByteArray&,QString&)),
+            m_pSearch, SLOT(addResult(QString&,QString&,QByteArray&,QString&)));
+
+    // Connect Search new result signal to this object's slot for printing result
+    connect(m_pSearch, SIGNAL(newSearchResult(QString&)),
+            this, SLOT(printSearchResult(QString&)));
+
+    m_pSearch->beginSearch();
+}
+
+void ChatDialog::cancelSearch()
+{
+    if (m_pSearch)
+    {
+        qDebug() << "Canceling search";
+        delete m_pSearch;
+        m_pSearch = NULL;
+        m_pSearchResults->clear();
+    }
+    else
+    {
+        qDebug() << "No search in progress";
+    }
+}
+
+void ChatDialog::printSearchResult(QString& fileName)
+{
+    m_pSearchResults->addItem(fileName);
+}
+
+void ChatDialog::searchResultDoubleClicked(QListWidgetItem *item)
+{
+    if (!m_pSearch)
+    {
+        qDebug() << "BUG!!!! m_pSearch is NULL, but list item was double-clicked";
+        return;
+    }
+
+    QPair<QByteArray, QString> file = m_pSearch->m_results[item->text()];
+    QByteArray fileId = file.first;
+    QString host = file.second;
+    QString fileName = saveFileString();
+    GlobalFiles->addDownloadFile(fileName, fileId, host);
+}
+
+QString ChatDialog::saveFileString()
+{
+    QString fileName;
+    for(;;)
+    {
+        fileName = QFileDialog::getSaveFileName(this);
+        QFile file(fileName);
+        if (file.exists())
+        {
+            qDebug() << "DON'T OVERWRITE AN EXISTING FILE";
+        }
+        else
+        {
+            return fileName;
+        }
+    }
 }

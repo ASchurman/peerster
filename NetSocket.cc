@@ -1,6 +1,8 @@
 #include <unistd.h>
 
 #include <QDebug>
+#include <QVariantList>
+#include <QSet>
 
 #include "NetSocket.hh"
 #include "MessageStore.hh"
@@ -201,7 +203,43 @@ void NetSocket::gotReadyRead()
 
         // varMap now contains the QVariantMap serialized in the received
         // datagram
+        if (varMap.contains(SEARCH)
+                && varMap.contains(ORIGIN)
+                && varMap.contains(BUDGET))
+        {
+            // received a search request!
+            QString searchTerms = varMap[SEARCH].toString();
+            QString origin = varMap[ORIGIN].toString();
+            int budget = varMap[BUDGET].toInt();
 
+            // Drop search requests that I sent
+            if (origin == m_hostName)
+            {
+                return;
+            }
+
+            if (budget > 0)
+            {
+                qDebug() << "Received good search request: " << searchTerms;
+                QList<QString> fileNames;
+                QList<QByteArray> hashes;
+                if (GlobalFiles->findFile(searchTerms, fileNames, hashes))
+                {
+                    qDebug() << "Found matches for search request; sending reply";
+                    sendSearchReply(searchTerms, fileNames, hashes, origin);
+                }
+
+                budget--;
+                if (budget > 0)
+                {
+                    sendSearchRequest(searchTerms, budget, origin);
+                }
+            }
+            else
+            {
+                qDebug() << "Received search request w/budget <= 0";
+            }
+        }
         if (varMap.contains(ORIGIN)
             && varMap.contains(SEQ_NO))
         {
@@ -270,9 +308,18 @@ void NetSocket::gotReadyRead()
                 QByteArray data = varMap[DATA].toByteArray();
                 priv.blockReply(dest, hopLimit, blockRep, data, origin);
             }
+            else if (varMap.contains(SEARCH_REP)
+                     && varMap.contains(MATCH_NAMES)
+                     && varMap.contains(MATCH_IDS))
+            {
+                QString searchTerms = varMap[SEARCH_REP].toString();
+                QVariantList resultNames = varMap[MATCH_NAMES].toList();
+                QVariantList resultIds = varMap[MATCH_IDS].toList();
+                priv.searchReply(dest, hopLimit, searchTerms, resultNames, resultIds, origin);
+            }
             else
             {
-                qDebug() << "Received private without chat, blockrep, or blockreq";
+                qDebug() << "Received private without content";
                 return;
             }
 
@@ -296,7 +343,7 @@ void NetSocket::gotReadyRead()
                     {
                         qDebug() << "Got a block request";
                         QByteArray block;
-                        if (GlobalFiles->findBlock(priv.m_hash, block));
+                        if (GlobalFiles->findBlock(priv.m_hash, block))
                         {
                             PrivateMessage privReply(priv.m_origin,
                                                      10,
@@ -312,13 +359,22 @@ void NetSocket::gotReadyRead()
                         GlobalFiles->addBlock(priv.m_hash, priv.m_data);
                         break;
                     }
+                    case PRIV_SEARCHREP:
+                    {
+                        for (int i = 0; i < priv.m_resultFileNames.count(); i++)
+                        {
+                            QString fileName = priv.m_resultFileNames[i].toString();
+                            QByteArray hash = priv.m_resultHashes[i].toByteArray();
+                            emit gotSearchResult(priv.m_searchTerms,fileName, hash, priv.m_origin);
+                        }
+                        break;
+                    }
                     default:
                     {
                         qDebug() << "Trying to process undef PrivateMessage";
                         break;
                     }
                 }
-                
             }
             else if (hopLimit - 1 > 0 && m_forward)
             {
@@ -474,6 +530,11 @@ void NetSocket::sendPrivate(PrivateMessage& priv)
                 varMap.insert(BLOCK_REP, priv.m_hash);
                 varMap.insert(DATA, priv.m_data);
                 break;
+            case PRIV_SEARCHREP:
+                varMap.insert(SEARCH_REP, priv.m_searchTerms);
+                varMap.insert(MATCH_NAMES, priv.m_resultFileNames);
+                varMap.insert(MATCH_IDS, priv.m_resultHashes);
+                break;
             default:
                 qDebug() << "Trying to send undef PrivateMessage";
         }
@@ -513,5 +574,69 @@ void NetSocket::sendRandRouteRumor()
 void NetSocket::requestBlock(QByteArray& hash, QString& host)
 {
     PrivateMessage priv(host, 10, hash, m_hostName);
+    sendPrivate(priv);
+}
+
+void NetSocket::sendSearchRequest(QString &searchTerms,
+                                  int budget,
+                                  QString origin)
+{
+    if (origin.isEmpty()) origin = m_hostName;
+
+    int baseBudget = budget / m_neighborAddrs.count();
+    int extraBudget = budget % m_neighborAddrs.count();
+
+    QList<int> budgetAlloc;
+    if (baseBudget > 0)
+    {
+        // We have enough budget for everyone to get baseBudget
+        for (int i = 0; i < m_neighborAddrs.count(); i++) budgetAlloc.append(baseBudget);
+
+        // Now spread extraBudget among as many peers as we can
+        for (int i = 0; i < extraBudget; i++) budgetAlloc[i]++;
+    }
+    else
+    {
+        // We don't have enough budget for everyone to get some budget; just
+        // spread extraBudget to as many peers as we can
+        for (int i = 0; i < extraBudget; i++) budgetAlloc.append(1);
+    }
+
+    // Now send the messages with the calculated budgets
+    QList<AddrInfo> neighbors = m_neighborAddrs;
+    if (budgetAlloc.count() > neighbors.count())
+    {
+        qDebug() << "BUG!!! budgetAlloc.count() > neighbors.count() !!!!!!";
+        return;
+    }
+    for (int i = 0; i < budgetAlloc.count(); i++)
+    {
+        QVariantMap varMap;
+        varMap.insert(ORIGIN, origin);
+        varMap.insert(SEARCH, searchTerms);
+        varMap.insert(BUDGET, budgetAlloc[i]);
+
+        int j = rand() % neighbors.count();
+        qDebug() << "Sending budget " << budgetAlloc[i]
+                    << " to neighbor " << neighbors[j].m_addr.toString();
+        AddrInfo addrInfo = neighbors[j];
+        sendMap(varMap, addrInfo);
+        neighbors.removeAt(j);
+    }
+}
+
+void NetSocket::sendSearchReply(QString &searchTerms,
+                                QList<QString> &fileNames,
+                                QList<QByteArray> &hashes,
+                                QString &dest)
+{
+    QVariantList varFileNames;
+    QVariantList varHashes;
+    for (int i = 0; i < fileNames.count(); i++)
+    {
+        varFileNames.append(fileNames[i]);
+        varHashes.append(hashes[i]);
+    }
+    PrivateMessage priv(dest, 10, searchTerms, varFileNames, varHashes, m_hostName);
     sendPrivate(priv);
 }

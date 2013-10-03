@@ -7,8 +7,10 @@
 #include <QVBoxLayout>
 #include <QListWidget>
 #include <QPushButton>
+#include <QGroupBox>
 
 #include "Common.hh"
+#include "Search.hh"
 
 class ChatDialog : public QDialog
 {
@@ -27,8 +29,14 @@ public slots:
     void addOriginForPrivates(QString& host);
     void showShareFileDialog();
     void newDownloadFile();
+    void searchForFile();
+    void cancelSearch();
+    void printSearchResult(QString& fileName);
+    void searchResultDoubleClicked(QListWidgetItem* item);
 
 private:
+    Search* m_pSearch;
+
     QVBoxLayout* m_pChatLayout;
     QVBoxLayout* m_pSendLayout;
     QVBoxLayout* m_pFileLayout;
@@ -42,6 +50,11 @@ private:
     QPushButton* m_pShareFileButton;
     QListWidget* m_pSharedFiles;
     QPushButton* m_pDownloadFileButton;
+    QListWidget* m_pSearchResults;
+    QPushButton* m_pSearchFileButton;
+    QPushButton* m_pCancelSearchButton;
+
+    QString saveFileString();
 };
 
 extern ChatDialog* GlobalChatDialog;

@@ -11,9 +11,11 @@ QT += network
 CONFIG += crypto
 
 # Input
-SOURCES += main.cc
+SOURCES += main.cc \
+    Search.cc
 
-HEADERS += Common.hh
+HEADERS += Common.hh \
+    Search.hh
 
 HEADERS += NetSocket.hh
 SOURCES += NetSocket.cc
