@@ -29,7 +29,7 @@ ChatDialog::ChatDialog()
     m_pMessageBox->setFocus();
     QFontMetrics font(m_pMessageBox->font());
     int rowHeight = font.lineSpacing();
-    m_pMessageBox->setFixedHeight(3 * rowHeight + 5);
+    m_pMessageBox->setFixedHeight(5 * rowHeight + 5);
 
     // a line in which the user can add new neighbors
     m_pNeighbor = new QLineEdit(this);
@@ -71,17 +71,25 @@ ChatDialog::ChatDialog()
     // are composed
     m_pSendLayout = new QVBoxLayout();
     m_pSendLayout->addWidget(m_pSendOptions);
+    m_pSendLayout->addWidget(m_pDownloadFileButton);
     m_pSendLayout->addWidget(m_pMessageBox);
 
     // layout for the right side of the window, containing widgets for file-
     // sharing
     m_pFileLayout = new QVBoxLayout();
-    m_pFileLayout->addWidget(m_pSharedFiles);
-    m_pFileLayout->addWidget(m_pShareFileButton);
-    m_pFileLayout->addWidget(m_pDownloadFileButton);
-    m_pFileLayout->addWidget(m_pSearchResults);
-    m_pFileLayout->addWidget(m_pSearchFileButton);
-    m_pFileLayout->addWidget(m_pCancelSearchButton);
+    m_pSharedFileLayout = new QVBoxLayout();
+    m_pSharedFileBox = new QGroupBox("Shared Files");
+    m_pSharedFileLayout->addWidget(m_pSharedFiles);
+    m_pSharedFileLayout->addWidget(m_pShareFileButton);
+    m_pSharedFileBox->setLayout(m_pSharedFileLayout);
+    m_pSearchLayout = new QVBoxLayout();
+    m_pSearchBox = new QGroupBox("Search Results");
+    m_pSearchLayout->addWidget(m_pSearchResults);
+    m_pSearchLayout->addWidget(m_pSearchFileButton);
+    m_pSearchLayout->addWidget(m_pCancelSearchButton);
+    m_pSearchBox->setLayout(m_pSearchLayout);
+    m_pFileLayout->addWidget(m_pSharedFileBox);
+    m_pFileLayout->addWidget(m_pSearchBox);
 
     // Add layouts to top-level layout
     topLayout->addLayout(m_pChatLayout);
@@ -115,6 +123,8 @@ ChatDialog::ChatDialog()
 
     connect(m_pSearchResults, SIGNAL(itemDoubleClicked(QListWidgetItem*)),
             this, SLOT(searchResultDoubleClicked(QListWidgetItem*)));
+
+    resize(750, 450);
 }
 
 void ChatDialog::gotTextChanged()

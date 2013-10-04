@@ -47,6 +47,10 @@ private:
     QListWidget* m_pSendOptions;
     QTextEdit* m_pMessageBox;
 
+    QGroupBox* m_pSharedFileBox;
+    QGroupBox* m_pSearchBox;
+    QVBoxLayout* m_pSharedFileLayout;
+    QVBoxLayout* m_pSearchLayout;
     QPushButton* m_pShareFileButton;
     QListWidget* m_pSharedFiles;
     QPushButton* m_pDownloadFileButton;
