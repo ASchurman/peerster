@@ -33,12 +33,14 @@ QVariantMap* MessageStore::getStatus()
 
 int MessageStore::getStatusDiff(QVariantMap& remoteStatus, MessageInfo& mesInfOut)
 {
-    QVariantMap* status = getStatus();
+    QVariantMap* pStatus = getStatus();
+    QVariantMap status(*pStatus);
+    delete pStatus;
 
     // True if the remote host has messages that we don't have.
     bool remoteHasExtra = false;
 
-    QList<QString> hosts = status->keys();
+    QList<QString> hosts = status.keys();
     for (int i = 0; i < hosts.count(); i++)
     {
         QString hostName = hosts[i];
@@ -50,7 +52,7 @@ int MessageStore::getStatusDiff(QVariantMap& remoteStatus, MessageInfo& mesInfOu
         int remoteNeed = remoteMissing ? 1 : remoteStatus[hostName].toInt();
 
         // the first seqno that we need from this host
-        int localNeed = (*status)[hostName].toInt();
+        int localNeed = status[hostName].toInt();
 
         if (remoteMissing || remoteNeed < localNeed)
         {
@@ -81,7 +83,7 @@ int MessageStore::getStatusDiff(QVariantMap& remoteStatus, MessageInfo& mesInfOu
         }
     }
 
-    if (remoteHasExtra || remoteStatus.count() > status->count())
+    if (remoteHasExtra || remoteStatus.count() > status.count())
     {
         return -1;
     }
