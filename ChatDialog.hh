@@ -11,6 +11,7 @@
 
 #include "Common.hh"
 #include "Search.hh"
+#include "PrivateMessage.hh"
 
 class ChatDialog : public QDialog
 {
@@ -24,7 +25,7 @@ public slots:
     void printMessage(MessageInfo& mesInf);
     void printPrivate(QString& chatText);
     void printPrivate(QString& chatText, QString& sender);
-    void printPrivate(PrivateMessage& priv);
+    void printPrivate(PrivateChat& priv);
     void processNeighborLine();
     void addOriginForPrivates(QString& host);
     void showShareFileDialog();

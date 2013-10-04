@@ -10,6 +10,7 @@
 
 #include "Common.hh"
 #include "Monger.hh"
+#include "PrivateMessage.hh"
 
 // Handles the network communication of peerster
 class NetSocket : public QUdpSocket
@@ -66,7 +67,7 @@ signals:
 
 private:
     // Send a private message of any type
-    void sendPrivate(PrivateMessage& priv);
+    void sendPrivate(PrivateMessage* priv);
 
     void sendMap(QVariantMap& varMap, QHostAddress address, int port);
     void sendMap(QVariantMap& varMap, AddrInfo& addr);

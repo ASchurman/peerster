@@ -197,23 +197,15 @@ void ChatDialog::printPrivate(QString& chatText, QString& sender)
     m_pChatView->append(text);
 }
 
-void ChatDialog::printPrivate(PrivateMessage& priv)
+void ChatDialog::printPrivate(PrivateChat& priv)
 {
-    // We can only print chat messages
-    if (priv.m_type == PRIV_CHAT)
+    if (priv.hasOrigin())
     {
-        if (priv.hasOrigin())
-        {
-            printPrivate(priv.m_text, priv.m_origin);
-        }
-        else
-        {
-            printPrivate(priv.m_text);
-        }
+        printPrivate(priv.m_text, priv.m_origin);
     }
     else
     {
-        qDebug() << "Trying to print a non-chat private message!!!";
+        printPrivate(priv.m_text);
     }
 }
 
