@@ -29,6 +29,7 @@ public slots:
     void processNeighborLine();
     void addOriginForPrivates(QString& host);
     void showShareFileDialog();
+    void showShareDirDialog();
     void newDownloadFile();
     void searchForFile();
     void cancelSearch();
@@ -53,6 +54,7 @@ private:
     QVBoxLayout* m_pSharedFileLayout;
     QVBoxLayout* m_pSearchLayout;
     QPushButton* m_pShareFileButton;
+    QPushButton* m_pShareDirButton;
     QListWidget* m_pSharedFiles;
     QPushButton* m_pDownloadFileButton;
     QListWidget* m_pSearchResults;

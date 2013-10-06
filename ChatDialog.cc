@@ -4,6 +4,7 @@
 #include <QDebug>
 #include <QInputDialog>
 #include <QByteArray>
+#include <QDirIterator>
 
 #include "ChatDialog.hh"
 #include "NetSocket.hh"
@@ -43,6 +44,7 @@ ChatDialog::ChatDialog()
 
     // button to open file dialog for sharing a new file
     m_pShareFileButton = new QPushButton("Share File...", this);
+    m_pShareDirButton = new QPushButton("Share Directory...", this);
 
     // button to download a file
     m_pDownloadFileButton = new QPushButton("Download File from Selected Peer...", this);
@@ -81,6 +83,7 @@ ChatDialog::ChatDialog()
     m_pSharedFileBox = new QGroupBox("Shared Files");
     m_pSharedFileLayout->addWidget(m_pSharedFiles);
     m_pSharedFileLayout->addWidget(m_pShareFileButton);
+    m_pSharedFileLayout->addWidget(m_pShareDirButton);
     m_pSharedFileBox->setLayout(m_pSharedFileLayout);
     m_pSearchLayout = new QVBoxLayout();
     m_pSearchBox = new QGroupBox("Search Results");
@@ -123,6 +126,9 @@ ChatDialog::ChatDialog()
 
     connect(m_pSearchResults, SIGNAL(itemDoubleClicked(QListWidgetItem*)),
             this, SLOT(searchResultDoubleClicked(QListWidgetItem*)));
+
+    connect(m_pShareDirButton, SIGNAL(clicked()),
+            this, SLOT(showShareDirDialog()));
 
     resize(750, 450);
 }
@@ -235,6 +241,25 @@ void ChatDialog::showShareFileDialog()
         {
             QStringList strList = shareFiles[i].split('/');
             m_pSharedFiles->addItem(strList.last());
+        }
+    }
+}
+
+void ChatDialog::showShareDirDialog()
+{
+    QString dir = QFileDialog::getExistingDirectory(this, "Share Directory");
+    QDirIterator dirIt(dir, QDirIterator::Subdirectories);
+
+    while (dirIt.hasNext())
+    {
+        dirIt.next();
+        if (dirIt.fileInfo().isFile())
+        {
+            QString filePath = dirIt.filePath();
+            if (GlobalFiles->addSharingFile(filePath))
+            {
+                m_pSharedFiles->addItem(dirIt.fileName());
+            }
         }
     }
 }
