@@ -52,7 +52,12 @@ ChatDialog::ChatDialog()
     // button to search for a file
     m_pSearchFileButton = new QPushButton("Search for File...", this);
 
-    m_pSearchResults = new QListWidget();
+    m_pSearchResults = new QTableWidget(0, 3, this);
+    QStringList headers;
+    headers.append("Name");
+    headers.append("Origin");
+    headers.append("Hash");
+    m_pSearchResults->setHorizontalHeaderLabels(headers);
 
     m_pCancelSearchButton = new QPushButton("Clear Search");
 
@@ -124,8 +129,8 @@ ChatDialog::ChatDialog()
     connect(m_pCancelSearchButton, SIGNAL(clicked()),
             this, SLOT(cancelSearch()));
 
-    connect(m_pSearchResults, SIGNAL(itemDoubleClicked(QListWidgetItem*)),
-            this, SLOT(searchResultDoubleClicked(QListWidgetItem*)));
+    connect(m_pSearchResults, SIGNAL(cellDoubleClicked(int,int)),
+            this, SLOT(searchResultDoubleClicked(int)));
 
     connect(m_pShareDirButton, SIGNAL(clicked()),
             this, SLOT(showShareDirDialog()));
@@ -313,8 +318,8 @@ void ChatDialog::searchForFile()
             m_pSearch, SLOT(addResult(QString&,QString&,QByteArray&,QString&)));
 
     // Connect Search new result signal to this object's slot for printing result
-    connect(m_pSearch, SIGNAL(newSearchResult(QString&)),
-            this, SLOT(printSearchResult(QString&)));
+    connect(m_pSearch, SIGNAL(newSearchResult(QString&,QString&,QString&)),
+            this, SLOT(printSearchResult(QString&,QString&,QString&)));
 
     m_pSearch->beginSearch();
 }
@@ -327,6 +332,7 @@ void ChatDialog::cancelSearch()
         delete m_pSearch;
         m_pSearch = NULL;
         m_pSearchResults->clear();
+        m_pSearchResults->setRowCount(0);
     }
     else
     {
@@ -334,22 +340,32 @@ void ChatDialog::cancelSearch()
     }
 }
 
-void ChatDialog::printSearchResult(QString& fileName)
+void ChatDialog::printSearchResult(QString& fileName,
+                                   QString& origin,
+                                   QString& hash)
 {
-    m_pSearchResults->addItem(fileName);
+    int insertRow = m_pSearchResults->rowCount();
+    m_pSearchResults->insertRow(insertRow);
+    m_pSearchResults->setItem(insertRow,
+                              0,
+                              new QTableWidgetItem(fileName));
+    m_pSearchResults->setItem(insertRow,
+                              1,
+                              new QTableWidgetItem(origin));
+    m_pSearchResults->setItem(insertRow,
+                              2,
+                              new QTableWidgetItem(hash));
 }
 
-void ChatDialog::searchResultDoubleClicked(QListWidgetItem *item)
+void ChatDialog::searchResultDoubleClicked(int row)
 {
     if (!m_pSearch)
     {
-        qDebug() << "BUG!!!! m_pSearch is NULL, but list item was double-clicked";
+        qDebug() << "m_pSearch is NULL, but list item was double-clicked";
         return;
     }
-
-    QPair<QByteArray, QString> file = m_pSearch->m_results[item->text()];
-    QByteArray fileId = file.first;
-    QString host = file.second;
+    QByteArray fileId = QByteArray::fromHex(m_pSearchResults->item(row, 2)->text().toUtf8());
+    QString host = m_pSearchResults->item(row, 1)->text();
     QString fileName = saveFileString();
     GlobalFiles->addDownloadFile(fileName, fileId, host);
 }

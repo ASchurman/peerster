@@ -8,6 +8,7 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QGroupBox>
+#include <QTableWidget>
 
 #include "Common.hh"
 #include "Search.hh"
@@ -33,8 +34,8 @@ public slots:
     void newDownloadFile();
     void searchForFile();
     void cancelSearch();
-    void printSearchResult(QString& fileName);
-    void searchResultDoubleClicked(QListWidgetItem* item);
+    void printSearchResult(QString& fileName, QString& origin, QString& hash);
+    void searchResultDoubleClicked(int row);
 
 private:
     Search* m_pSearch;
@@ -57,7 +58,7 @@ private:
     QPushButton* m_pShareDirButton;
     QListWidget* m_pSharedFiles;
     QPushButton* m_pDownloadFileButton;
-    QListWidget* m_pSearchResults;
+    QTableWidget* m_pSearchResults;
     QPushButton* m_pSearchFileButton;
     QPushButton* m_pCancelSearchButton;
 

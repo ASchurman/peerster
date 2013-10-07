@@ -31,11 +31,12 @@ void Search::addResult(QString& terms, QString &fileName, QByteArray &hash, QStr
     }
 
     // If this is a new file, add it to result table and emit newSearchResult
-    if (!m_results.contains(fileName))
+    if (!m_results.contains(hash))
     {
         qDebug() << "GOT NEW SEARCH RESULT: " << fileName;
-        m_results.insert(fileName, qMakePair(hash, host));
-        emit newSearchResult(fileName);
+        m_results.insert(hash, host);
+        QString hashHex(hash.toHex());
+        emit newSearchResult(fileName, host, hashHex);
 
         // Stop broadcasting if we've gotten to MAX_RESULTS
         if (m_results.count() >= MAX_RESULTS)

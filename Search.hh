@@ -6,7 +6,6 @@
 #include <QString>
 #include <QByteArray>
 #include <QTimer>
-#include <QPair>
 
 class Search : public QObject
 {
@@ -21,9 +20,8 @@ public:
     // The search string. Space-separated list of search terms.
     QString m_terms;
 
-    // Contains fileIDs of search results and the hosts they came from.
-    // Keyed by filename
-    QHash<QString, QPair<QByteArray, QString> > m_results;
+    // Keyed by fileIDs. Contains origin value of the owner of the file.
+    QHash<QByteArray, QString> m_results;
 
 public slots:
     // Executes the search by sending out messages to peers. Makes call to
@@ -34,7 +32,7 @@ public slots:
     void addResult(QString& terms, QString& fileName, QByteArray& hash, QString& host);
 
 signals:
-    void newSearchResult(QString& fileName);
+    void newSearchResult(QString& fileName, QString& origin, QString& hash);
 
 private:
     // Rebroadcast budget for the next broadcast (thus it is increased after
