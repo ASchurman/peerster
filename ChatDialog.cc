@@ -344,17 +344,24 @@ void ChatDialog::printSearchResult(QString& fileName,
                                    QString& origin,
                                    QString& hash)
 {
+    // Add new row for new search result
     int insertRow = m_pSearchResults->rowCount();
     m_pSearchResults->insertRow(insertRow);
-    m_pSearchResults->setItem(insertRow,
-                              0,
-                              new QTableWidgetItem(fileName));
-    m_pSearchResults->setItem(insertRow,
-                              1,
-                              new QTableWidgetItem(origin));
-    m_pSearchResults->setItem(insertRow,
-                              2,
-                              new QTableWidgetItem(hash));
+
+    // Create QTableWidgetItems for each column
+    QTableWidgetItem* fileItem = new QTableWidgetItem(fileName);
+    QTableWidgetItem* originItem = new QTableWidgetItem(origin);
+    QTableWidgetItem* hashItem = new QTableWidgetItem(hash);
+
+    // Make the items read-only
+    fileItem->setFlags(fileItem->flags() ^ Qt::ItemIsEditable);
+    originItem->setFlags(originItem->flags() ^ Qt::ItemIsEditable);
+    hashItem->setFlags(hashItem->flags() ^ Qt::ItemIsEditable);
+
+    // Insert the items
+    m_pSearchResults->setItem(insertRow, 0, fileItem);
+    m_pSearchResults->setItem(insertRow, 1, originItem);
+    m_pSearchResults->setItem(insertRow, 2, hashItem);
 }
 
 void ChatDialog::searchResultDoubleClicked(int row)
@@ -364,9 +371,10 @@ void ChatDialog::searchResultDoubleClicked(int row)
         qDebug() << "m_pSearch is NULL, but list item was double-clicked";
         return;
     }
+    QString fileName = saveFileString();
+    if (fileName.isEmpty()) return;
     QByteArray fileId = QByteArray::fromHex(m_pSearchResults->item(row, 2)->text().toUtf8());
     QString host = m_pSearchResults->item(row, 1)->text();
-    QString fileName = saveFileString();
     GlobalFiles->addDownloadFile(fileName, fileId, host);
 }
 
