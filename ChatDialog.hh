@@ -63,6 +63,7 @@ private:
     QPushButton* m_pCancelSearchButton;
 
     QString saveFileString();
+    void setSearchResultHeaders();
 };
 
 extern ChatDialog* GlobalChatDialog;

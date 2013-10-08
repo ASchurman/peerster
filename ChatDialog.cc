@@ -53,11 +53,7 @@ ChatDialog::ChatDialog()
     m_pSearchFileButton = new QPushButton("Search for File...", this);
 
     m_pSearchResults = new QTableWidget(0, 3, this);
-    QStringList headers;
-    headers.append("Name");
-    headers.append("Origin");
-    headers.append("Hash");
-    m_pSearchResults->setHorizontalHeaderLabels(headers);
+    setSearchResultHeaders();
 
     m_pCancelSearchButton = new QPushButton("Clear Search");
 
@@ -135,7 +131,16 @@ ChatDialog::ChatDialog()
     connect(m_pShareDirButton, SIGNAL(clicked()),
             this, SLOT(showShareDirDialog()));
 
-    resize(750, 450);
+    resize(900, 600);
+}
+
+void ChatDialog::setSearchResultHeaders()
+{
+    QStringList headers;
+    headers.append("Name");
+    headers.append("Origin");
+    headers.append("Hash");
+    m_pSearchResults->setHorizontalHeaderLabels(headers);
 }
 
 void ChatDialog::gotTextChanged()
@@ -333,6 +338,7 @@ void ChatDialog::cancelSearch()
         m_pSearch = NULL;
         m_pSearchResults->clear();
         m_pSearchResults->setRowCount(0);
+        setSearchResultHeaders();
     }
     else
     {
