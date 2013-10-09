@@ -46,8 +46,7 @@ public:
 
     bool fileComplete()
     {
-        return !m_blocklist.isEmpty()
-                && m_blockHash.count() == m_obtainedBlocks.count();
+        return !m_blocklist.isEmpty() && m_remHashes.isEmpty();
     }
 
     // True if this is a file we're sharing on the network.
@@ -69,16 +68,12 @@ public:
     // appending the blocks together.
     QList<QByteArray> m_data;
 
-    // Block indicies that we have already obtained. When the size of this
-    // equals the size of m_blockHash, the file is done downloading.
-    QSet<qint64> m_obtainedBlocks;
+    // Remaining hashes for this file. m_remHashes[0] is the hash of the next
+    // block that needs to be appended to m_data.
+    QList<QByteArray> m_remHashes;
 
     // Concatenation of the 32-byte SHA-256 hashes for each 8 KB block
     QByteArray m_blocklist;
-
-    // Contains the 0-based index of the block for each SHA-256 hash.
-    // Just the hashes of the blocklist stored for easy searching.
-    QHash<QByteArray, qint64> m_blockHash;
 
     // SHA-256 hash of m_blocklist
     QByteArray m_fileId;

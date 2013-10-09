@@ -66,6 +66,7 @@ void FileStore::addBlock(QByteArray &blockHash, QByteArray &data)
             // if it's done downloading
             if(m_downloadingFiles[downIds[i]]->addBlock(blockHash, data))
             {
+                // TODO reshare completed files?
                 FileData* doneFile = m_downloadingFiles[downIds[i]];
                 m_downloadingFiles.remove(downIds[i]);
                 delete doneFile;

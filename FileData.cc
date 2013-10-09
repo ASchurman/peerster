@@ -13,7 +13,7 @@ FileData::FileData(QString& fileName, QByteArray& fileId, QString& host)
 {
     m_isSharing = false;
     m_blocklist.clear();
-    m_blockHash.clear();
+    m_remHashes.clear();
     m_fileId = fileId;
     m_name = fileName;
     m_size = -1;
@@ -39,7 +39,7 @@ bool FileData::open(QString& fileName)
 {
     // Clear existing data in case this FileData object is being reused.
     m_blocklist.clear();
-    m_blockHash.clear();
+    m_remHashes.clear();
     m_fileId.clear();
     m_name.clear();
     m_size = 0;
@@ -68,9 +68,8 @@ bool FileData::open(QString& fileName)
         QByteArray hash = shaHash.final().toByteArray();
         shaHash.clear();
 
-        // Append hash to m_blocklist and insert it in m_blockHash
+        // Append hash to m_blocklist
         m_blocklist += hash;
-        m_blockHash.insert(hash, i);
     }
 
     // Check for errors in reading from the file
@@ -103,7 +102,13 @@ bool FileData::open(QString& fileName)
 
 bool FileData::containsHash(QByteArray& hash)
 {
-    return m_fileId == hash || m_blockHash.contains(hash);
+    if (m_fileId == hash) return true;
+
+    for (qint64 i = 0; i < m_blocklist.size(); i += SHA_SIZE)
+    {
+        if (m_blocklist.mid(i, SHA_SIZE) == hash) return true;
+    }
+    return false;
 }
 
 qint64 FileData::findBlock(QByteArray& hash)
@@ -120,8 +125,17 @@ qint64 FileData::findBlock(QByteArray& hash)
     }
     else
     {
-        qDebug() << "        FileData returning block " << m_blockHash[hash];
-        return m_blockHash[hash];
+        int blockNo;
+        for (blockNo = 0; blockNo*SHA_SIZE < m_blocklist.size(); blockNo++)
+        {
+            if (m_blocklist.mid(blockNo*SHA_SIZE, SHA_SIZE) == hash) break;
+        }
+        if (blockNo * SHA_SIZE >= m_blocklist.size())
+        {
+            qDebug() << "        Something went wrong in FileData::findBlock...";
+        }
+        qDebug() << "        FileData returning block " << blockNo;
+        return blockNo;
     }
 }
 
@@ -148,20 +162,14 @@ void FileData::requestBlock()
     else
     {
         qDebug() << "REQUESTING BLOCK for file: " << m_name;
-
-        QList<QByteArray> allHashes = m_blockHash.keys();
-        for (qint64 i = 0; i < allHashes.count(); i++)
+        if (m_remHashes.isEmpty())
         {
-            if (!m_obtainedBlocks.contains(m_blockHash[allHashes[i]]))
-            {
-                qDebug() << "    REQUESTING BLOCK " << m_blockHash[allHashes[i]];
-                GlobalSocket->requestBlock(allHashes[i], m_host);
-                m_timeouts = 0;
-                m_pTimer->start();
-                return;
-            }
+            qDebug() << "    NEED BLOCK, BUT CANNOT FIND NEEDED BLOCK!!!!";
         }
-        qDebug() << "    NEED BLOCK, BUT CANNOT FIND NEEDED BLOCK!!!!";
+
+        GlobalSocket->requestBlock(m_remHashes[0], m_host);
+        m_timeouts = 0;
+        m_pTimer->start();
     }
 }
 
@@ -192,11 +200,8 @@ bool FileData::addBlock(QByteArray& hash, QByteArray& block)
         qint64 i;
         for (i = 0; !cpBlocklist.isEmpty(); i++)
         {
-            m_blockHash.insert(cpBlocklist.left(SHA_SIZE), i);
+            m_remHashes.append(cpBlocklist.left(SHA_SIZE));
             cpBlocklist.remove(0, SHA_SIZE);
-
-            // Append an empty block to our data for each block in the blocklist
-            m_data.append(QByteArray());
         }
 
         // Request a new block
@@ -204,17 +209,16 @@ bool FileData::addBlock(QByteArray& hash, QByteArray& block)
         return false;
     }
 
-    // Check if this is one of our normal blocks. This is a new block if it's
-    // in our blocklist but not in our obtained blocks
-    if (m_blockHash.contains(hash)
-            && !m_obtainedBlocks.contains(m_blockHash[hash]))
+    // Check if this is one of our normal blocks. If this equals the head of
+    // m_remHashes,then it's a block we requested
+    if (!m_remHashes.isEmpty() && m_remHashes[0] == hash)
     {
         m_pTimer->stop();
 
         // Add the block to our data and obtained block set
-        qDebug() << "    GOT BLOCK: " << m_blockHash[hash];
-        m_data[m_blockHash[hash]] = block;
-        m_obtainedBlocks.insert(m_blockHash[hash]);
+        qDebug() << "    GOT BLOCK";
+        m_data.append(block);
+        m_remHashes.removeAt(0);
 
         // Are we done? If so, save the file
         if (fileComplete())
@@ -229,17 +233,7 @@ bool FileData::addBlock(QByteArray& hash, QByteArray& block)
             return false;
         }
     }
-    else if (!m_blockHash.contains(hash))
-    {
-        qDebug() << "    Nevermind...this file doesn't contain this hash";
-        return false;
-    }
-    else if (m_obtainedBlocks.contains(m_blockHash[hash]))
-    {
-        qDebug() << "    Nevermind...we already have block " << m_blockHash[hash];
-        return false;
-    }
-    qDebug() << "    Something weird happened....";
+
     return false;
 }
 
