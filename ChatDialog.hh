@@ -36,6 +36,7 @@ public slots:
     void cancelSearch();
     void printSearchResult(QString& fileName, QString& origin, QString& hash);
     void searchResultDoubleClicked(int row);
+    void repeatSearch();
 
 private:
     Search* m_pSearch;
@@ -61,9 +62,11 @@ private:
     QTableWidget* m_pSearchResults;
     QPushButton* m_pSearchFileButton;
     QPushButton* m_pCancelSearchButton;
+    QPushButton* m_pRepeatSearchButton;
 
     QString saveFileString();
     void setSearchResultHeaders();
+    void createSearch(QString& terms);
 };
 
 extern ChatDialog* GlobalChatDialog;

@@ -56,6 +56,7 @@ ChatDialog::ChatDialog()
     setSearchResultHeaders();
 
     m_pCancelSearchButton = new QPushButton("Clear Search");
+    m_pRepeatSearchButton = new QPushButton("Repeat Current Search");
 
     // List of all files currently being shared by this node
     m_pSharedFiles = new QListWidget();
@@ -90,6 +91,7 @@ ChatDialog::ChatDialog()
     m_pSearchBox = new QGroupBox("Search Results");
     m_pSearchLayout->addWidget(m_pSearchResults);
     m_pSearchLayout->addWidget(m_pSearchFileButton);
+    m_pSearchLayout->addWidget(m_pRepeatSearchButton);
     m_pSearchLayout->addWidget(m_pCancelSearchButton);
     m_pSearchBox->setLayout(m_pSearchLayout);
     m_pFileLayout->addWidget(m_pSharedFileBox);
@@ -121,6 +123,9 @@ ChatDialog::ChatDialog()
 
     connect(m_pSearchFileButton, SIGNAL(clicked()),
             this, SLOT(searchForFile()));
+
+    connect(m_pRepeatSearchButton, SIGNAL(clicked()),
+            this, SLOT(repeatSearch()));
 
     connect(m_pCancelSearchButton, SIGNAL(clicked()),
             this, SLOT(cancelSearch()));
@@ -305,6 +310,14 @@ void ChatDialog::newDownloadFile()
 
 void ChatDialog::searchForFile()
 {
+    QString searchStr = QInputDialog::getText(this, "Search", "Enter search terms:");
+    if (searchStr.isEmpty()) return;
+
+    createSearch(searchStr);
+}
+
+void ChatDialog::createSearch(QString& terms)
+{
     // Check if we have a search already going; only run 1 search at a time
     if (m_pSearch)
     {
@@ -312,11 +325,7 @@ void ChatDialog::searchForFile()
         return;
     }
 
-    // Create Search
-    QString searchStr = QInputDialog::getText(this, "Search", "Enter search terms:");
-    if (searchStr.isEmpty()) return;
-
-    m_pSearch = new Search(searchStr);
+    m_pSearch = new Search(terms);
 
     // Connect GlobalSocket got search result signal to Search
     connect(GlobalSocket, SIGNAL(gotSearchResult(QString&,QString&,QByteArray&,QString&)),
@@ -339,6 +348,21 @@ void ChatDialog::cancelSearch()
         m_pSearchResults->clear();
         m_pSearchResults->setRowCount(0);
         setSearchResultHeaders();
+    }
+    else
+    {
+        qDebug() << "No search in progress";
+    }
+}
+
+void ChatDialog::repeatSearch()
+{
+    if (m_pSearch)
+    {
+        qDebug() << "Repeating search: " << m_pSearch->m_terms;
+        QString terms = m_pSearch->m_terms;
+        cancelSearch();
+        createSearch(terms);
     }
     else
     {

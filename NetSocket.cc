@@ -647,8 +647,6 @@ void NetSocket::sendSearchRequest(QString &searchTerms,
         varMap.insert(BUDGET, budgetAlloc[i]);
 
         int j = rand() % neighbors.count();
-        qDebug() << "Sending budget " << budgetAlloc[i]
-                    << " to neighbor " << neighbors[j].m_addr.toString();
         AddrInfo addrInfo = neighbors[j];
         sendMap(varMap, addrInfo);
         neighbors.removeAt(j);
