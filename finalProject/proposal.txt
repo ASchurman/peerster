@@ -11,9 +11,9 @@ Normal rumor messages will have the following format:
  message decreases the risk since there will presumably be multiple routes,
  this scheme is vulnerable to man in the middle attacks; this will be addressed
  later in this proposal.
--"PubKeySigs" which contains the signatures for my public key by individuals
- who trust me. It's contained in the form of a QVariantMap keyed by origin name.
- This process of trusting public keys is described later in this proposal.
+-"PubKeySigners" which contains a QList of the origin names that trust me.
+ Others will be able to request the actual signatures from me with a new type of
+ point-to-point message described later.
 
 Point-to-point messages will be encrypted by the recipient's public key and will
 have the following format:
@@ -26,8 +26,9 @@ have the following format:
        point-to-point message
 -"Sig" which is a signature for "Message".
 
-Key exchange in this scheme is vulnerable to man in the middle attacks, so the
-following scheme will be added to authenticate public key - origin pairings.
+Key exchange with only rumor messages is vulnerable to man in the middle
+attacks, so the following scheme will be added to authenticate pairings between
+public keys and origin names.
 -Alice wants to authenticate Bob because she knows him outside of peerster.
 -Alice sends Bob a point-to-point message with the field "Challenge" containing
  a QString that challenges Bob with a question. For example
@@ -43,18 +44,20 @@ following scheme will be added to authenticate public key - origin pairings.
 -Alice signs Bob's public key and sends the signature back to Bob in a
  point-to-point message with the field "PubKeySig"
 
-Bob will now send out all the signatures he's acquired for his public key
-whenever he sends his public key in a rumor message. These signatures will be
-contained in the message field "PubKeySigs" which is a QVariantMap keyed by
-origin names.
+Bob will now include Alice's origin name in his "PubKeySigners" field in future
+messages.
 
 Whenever Charlie receives a public key from a non-trusted individual, he checks
-"PubKeySigs" to see if he trusts any of the signers. If he does, then he will
-trust this new public key by extension. For example, suppose Charlie trusts
-Alice in the example above. Alice trusts Bob because he passed her challenge,
-so now Bob sends out Alice's signature with his public key. When Charlie
-receieves Bob's public key, he'll see that Alice signed it, so Charlie will
-trust Bob by signing his public key and sending it to Bob.
+"PubKeySigners" to see if he trusts any of the signers. If he does, he'll send
+a point-to-point message to the owner of the public key asking for the signature
+of the trusted third party.
+For example, suppose Charlie trusts Alice and just received a message from Bob
+with Alice's name included in the "PubKeySigners" field. Charlie sends Bob a
+message with the field "SigRequest" containing Alice's origin as a QString. Bob
+then sends Charlie a point-to-point message with Alice's name in a field
+"Signer" and Alice's signature in a field "SigResponse".
+Charlie then verifies Alice's signature and trusts Bob by signing his public
+key and sending the signature as Alice did previously.
 
 This notion of trusted versus non-trusted public keys will be shown in the UI.
 A graphical distinction will be made between completely unsigned messages,
