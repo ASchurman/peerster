@@ -1,0 +1,63 @@
+I will add encryption and digital signatures to peerster.
+
+Upon start-up, peerster will generate a 1024-bit RSA key pair.
+
+Normal rumor messages will have the following format:
+-"Message" which contains a QVariantMap containing all the old fields for the
+  rumor message.
+-"Sig" which contains a signature for the contents of "Message".
+-"PubKey" which contains a QByteArray of the sender's public key.
+ Although broadcasting the public key early and often through every rumor
+ message decreases the risk since there will presumably be multiple routes,
+ this scheme is vulnerable to man in the middle attacks; this will be addressed
+ later in this proposal.
+-"PubKeySigs" which contains the signatures for my public key by individuals
+ who trust me. It's contained in the form of a QVariantMap keyed by origin name.
+ This process of trusting public keys is described later in this proposal.
+
+Point-to-point messages will be encrypted by the recipient's public key and will
+have the following format:
+-"HopLimit" which is outside of the signature, since it needs to be modified by
+ middlemen.
+-"Message" which is a QVariantMap containing the following fields:
+      -"Dest" as before
+      -"Origin" as before
+      -"Crypt" which is a QVariantMap containing the remaining fields of the
+       point-to-point message
+-"Sig" which is a signature for "Message".
+
+Key exchange in this scheme is vulnerable to man in the middle attacks, so the
+following scheme will be added to authenticate public key - origin pairings.
+-Alice wants to authenticate Bob because she knows him outside of peerster.
+-Alice sends Bob a point-to-point message with the field "Challenge" containing
+ a QString that challenges Bob with a question. For example
+ "Where did we first meet?" or some other question that only Bob can answer.
+-Bob creates an answer to this question (maximum 32 characters) and uses it as
+ an AES256 key, padding it with spaces. Bob then encrypts his public key with
+ this AES256 key.
+-Bob sends Alice a point-to-point message with the field "CryptPubKey" which is
+ a QByteArray of his encrypted public key.
+-Alice decrypts Bob's public key, since she knew the answer to her challenge to
+ Bob. If Bob's decrypted public key matches what she has on record for Bob, then
+ Alice trusts that Bob's public key is authentic.
+-Alice signs Bob's public key and sends the signature back to Bob in a
+ point-to-point message with the field "PubKeySig"
+
+Bob will now send out all the signatures he's acquired for his public key
+whenever he sends his public key in a rumor message. These signatures will be
+contained in the message field "PubKeySigs" which is a QVariantMap keyed by
+origin names.
+
+Whenever Charlie receives a public key from a non-trusted individual, he checks
+"PubKeySigs" to see if he trusts any of the signers. If he does, then he will
+trust this new public key by extension. For example, suppose Charlie trusts
+Alice in the example above. Alice trusts Bob because he passed her challenge,
+so now Bob sends out Alice's signature with his public key. When Charlie
+receieves Bob's public key, he'll see that Alice signed it, so Charlie will
+trust Bob by signing his public key and sending it to Bob.
+
+This notion of trusted versus non-trusted public keys will be shown in the UI.
+A graphical distinction will be made between completely unsigned messages,
+messages signed by a non-trusted public key (and thus potentially the result of
+a man-in-the-middle attack), and messages signed by a trusted public key.
+
