@@ -10,6 +10,7 @@
 #include "RouteTable.hh"
 #include "Common.hh"
 #include "FileStore.hh"
+#include "finalProject/crypto.hh"
 
 int main(int argc, char **argv)
 {
@@ -27,6 +28,7 @@ int main(int argc, char **argv)
     GlobalMessages = new MessageStore();
     GlobalRoutes = new RouteTable();
     GlobalFiles = new FileStore();
+    GlobalCrypto = new Crypto();
 
     // Create an initial chat dialog window
     GlobalChatDialog->show();

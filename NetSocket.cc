@@ -9,6 +9,7 @@
 #include "RouteTable.hh"
 #include "ChatDialog.hh"
 #include "FileStore.hh"
+#include "finalProject/crypto.hh"
 
 NetSocket* GlobalSocket;
 
@@ -29,6 +30,18 @@ NetSocket* GlobalSocket;
 #define SEARCH_REP "SearchReply"
 #define MATCH_NAMES "MatchNames"
 #define MATCH_IDS "MatchIDs"
+
+// Crypto-related VariantMap keys
+#define MESSAGE "Message"
+#define SIG "Sig"
+#define PUBKEY "PubKey"
+#define PUBKEY_SIGNERS "PubKeySigners"
+#define CRYPT "Crypt"
+#define CHALLENGE "Challenge"
+#define CRYPT_PUBKEY "CryptPubKey"
+#define PUBKEY_SIG "PubKeySig"
+#define SIG_REQ "SigRequest"
+#define SIG_REP "SigResponse"
 
 NetSocket::NetSocket()
 {
@@ -200,6 +213,8 @@ void NetSocket::gotReadyRead()
 
         QDataStream dataStream(&datagram, QIODevice::ReadOnly);
         dataStream >> varMap;
+
+        // TODO: Do crypto work on received messages here
 
         // varMap now contains the QVariantMap serialized in the received
         // datagram
@@ -467,6 +482,7 @@ void NetSocket::sendMessage(MessageInfo& mesInf,
                             int port,
                             bool startTimer)
 {
+    // TODO: change message / route-message map to conform to new standard
     QVariantMap varMap;
     if (!mesInf.m_isRoute) varMap.insert(CHAT_TEXT, mesInf.m_body);
     varMap.insert(ORIGIN, mesInf.m_host);
@@ -493,6 +509,7 @@ void NetSocket::sendMessage(MessageInfo& mesInf,
 
 void NetSocket::sendStatus(QHostAddress address, int port)
 {
+    // TODO: change status message map to conform to new standard
     QVariantMap* status = GlobalMessages->getStatus();
     QVariantMap statusMessage;
     statusMessage.insert(WANT, *status);
@@ -525,6 +542,7 @@ void NetSocket::sendMap(QVariantMap& varMap, AddrInfo& addr)
 
 void NetSocket::sendPrivate(PrivateMessage* priv)
 {
+    // TODO: Change private message format to conform to new standard
     AddrInfo addr;
 
     if (GlobalRoutes->getNextHop(priv->m_dest, addr))
@@ -641,6 +659,7 @@ void NetSocket::sendSearchRequest(QString &searchTerms,
     }
     for (int i = 0; i < budgetAlloc.count(); i++)
     {
+        // TODO: Change search request map to conform to new standard (keep BUDGET outside of sig)
         QVariantMap varMap;
         varMap.insert(ORIGIN, origin);
         varMap.insert(SEARCH, searchTerms);

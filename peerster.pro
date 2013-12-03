@@ -13,10 +13,12 @@ CONFIG += crypto
 # Input
 SOURCES += main.cc \
     Search.cc \
+    finalProject/crypto.cc
 
 HEADERS += Common.hh \
     Search.hh \
-    PrivateMessage.hh
+    PrivateMessage.hh \
+    finalProject/crypto.hh
 
 HEADERS += NetSocket.hh
 SOURCES += NetSocket.cc
