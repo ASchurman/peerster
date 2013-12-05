@@ -7,7 +7,8 @@
 #include <QHostAddress>
 #include <QTimer>
 
-#include "Common.hh"
+#include "messageinfo.hh"
+#include "addrinfo.hh"
 
 // Contains the per-neighbor state
 class Monger : public QObject

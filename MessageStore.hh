@@ -5,7 +5,8 @@
 #include <QString>
 #include <QVariantMap>
 
-#include "Common.hh"
+#include "messageinfo.hh"
+#include "addrinfo.hh"
 
 class MessageStore : public QObject
 {

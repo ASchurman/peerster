@@ -8,7 +8,8 @@
 #include "NetSocket.hh"
 #include "MessageStore.hh"
 #include "RouteTable.hh"
-#include "Common.hh"
+#include "messageinfo.hh"
+#include "addrinfo.hh"
 #include "FileStore.hh"
 #include "finalProject/crypto.hh"
 

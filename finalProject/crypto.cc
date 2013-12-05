@@ -23,6 +23,14 @@ QVariantMap Crypto::deserialize(const QByteArray& data)
     return map;
 }
 
+QList<QVariant> Crypto::keySigList()
+{
+    QStringList keySigs = m_keySigs.keys();
+    QVector<QVariant> v(keySigs.size());
+    qCopy(keySigs.begin(), keySigs.end(), v.begin());
+    return v.toList();
+}
+
 Crypto::Crypto()
 {
     // Create my private key
@@ -34,6 +42,8 @@ Crypto::Crypto()
 
     // Extract the public component
     m_pub = m_priv.toPublicKey();
+
+    qDebug() << "My public key: " << pubKeyVal().toHex();
 }
 
 QByteArray Crypto::encrypt(const QString& dest, const QByteArray& data)
@@ -83,6 +93,18 @@ bool Crypto::checkSig(const QString& origin, const QByteArray& data, const QByte
     return m_pubTable[origin].verifyMessage(message, sig, QCA::EMSA3_MD5);
 }
 
+QByteArray Crypto::pubKeyVal(const QString& name)
+{
+    if (m_pubTable.contains(name))
+    {
+        return m_pubTable[name].toRSA().n().toArray().toByteArray();
+    }
+    else
+    {
+        return QByteArray();
+    }
+}
+
 bool Crypto::isTrusted(const QString& name)
 {
     return m_trusted.contains(name);
@@ -106,6 +128,8 @@ void Crypto::addPubKey(const QString& name, const QByteArray& pubKey)
 
         // Insert it into table
         m_pubTable.insert(name, rsaPubKey.toPublicKey());
+
+        qDebug() << "Received new pubkey for user " << name;
     }
 }
 
@@ -124,5 +148,47 @@ QByteArray Crypto::getKeySig(const QString& name)
 
 bool Crypto::addKeySig(const QString& name, const QByteArray& sig)
 {
-    // TODO addKeySig
+    if (checkSig(name, pubKeyVal(), sig))
+    {
+        // Valid signature for user name!
+        m_keySigs.insert(name, sig);
+        return true;
+    }
+    else
+    {
+        // Invalid signature or we don't have a public key for user name
+        return false;
+    }
+}
+
+void Crypto::startChallenge(const QString& dest, const QString& answer)
+{
+    // TODO startChallenge
+
+    // if there's already a challenge started for dest, remove it and start a
+    // new one
+}
+
+bool Crypto::endChallenge(const QString& dest, const QByteArray& cryptKey)
+{
+    // TODO endChallenge
+    return true;
+}
+
+QList<QVariant> Crypto::keySigList(const QString& name)
+{
+    if (m_keySigLists.contains(name))
+    {
+        return m_keySigLists[name];
+    }
+    else
+    {
+        return QList<QVariant>();
+    }
+}
+
+void Crypto::updateKeySigList(const QString& name,
+                              const QList<QVariant> keySigList)
+{
+    m_keySigLists.insert(name, keySigList);
 }

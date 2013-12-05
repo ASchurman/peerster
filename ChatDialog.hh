@@ -10,7 +10,7 @@
 #include <QGroupBox>
 #include <QTableWidget>
 
-#include "Common.hh"
+#include "messageinfo.hh"
 #include "Search.hh"
 #include "PrivateMessage.hh"
 

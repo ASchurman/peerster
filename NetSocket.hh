@@ -8,7 +8,8 @@
 #include <QTimer>
 #include <QByteArray>
 
-#include "Common.hh"
+#include "messageinfo.hh"
+#include "addrinfo.hh"
 #include "Monger.hh"
 #include "PrivateMessage.hh"
 
@@ -69,8 +70,8 @@ private:
     // Send a private message of any type
     void sendPrivate(PrivateMessage* priv);
 
-    void sendMap(QVariantMap& varMap, QHostAddress address, int port);
-    void sendMap(QVariantMap& varMap, AddrInfo& addr);
+    void sendMap(const QVariantMap& varMap, QHostAddress address, int port);
+    void sendMap(const QVariantMap& varMap, const AddrInfo& addr);
 
     // finds the provided AddrInfo in m_neighborAddrs and returns a pointer to
     // it, else returns NULL

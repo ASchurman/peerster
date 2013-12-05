@@ -214,90 +214,9 @@ void NetSocket::gotReadyRead()
         QDataStream dataStream(&datagram, QIODevice::ReadOnly);
         dataStream >> varMap;
 
-        // TODO: Do crypto work on received messages here
-
-        // varMap now contains the QVariantMap serialized in the received
-        // datagram
-        if (varMap.contains(SEARCH)
-                && varMap.contains(ORIGIN)
-                && varMap.contains(BUDGET))
+        if (varMap.contains(DEST))
         {
-            // received a search request!
-            QString searchTerms = varMap[SEARCH].toString();
-            QString origin = varMap[ORIGIN].toString();
-            int budget = varMap[BUDGET].toInt();
-
-            // Drop search requests that I sent
-            if (origin == m_hostName)
-            {
-                return;
-            }
-
-            if (budget > 0)
-            {
-                qDebug() << "Received good search request: " << searchTerms;
-                QList<QString> fileNames;
-                QList<QByteArray> hashes;
-                if (GlobalFiles->findFile(searchTerms, fileNames, hashes))
-                {
-                    qDebug() << "Found matches for search request; sending reply";
-                    sendSearchReply(searchTerms, fileNames, hashes, origin);
-                }
-
-                budget--;
-                if (budget > 0)
-                {
-                    sendSearchRequest(searchTerms, budget, origin);
-                }
-            }
-            else
-            {
-                qDebug() << "Received search request w/budget <= 0";
-            }
-        }
-        if (varMap.contains(ORIGIN)
-            && varMap.contains(SEQ_NO))
-        {
-            // received a rumor message!
-            MessageInfo mesInf(varMap[ORIGIN].toString(),
-                               varMap[SEQ_NO].toInt());
-
-            // add message body if this isn't a route rumor message
-            if (varMap.contains(CHAT_TEXT))
-            {
-                mesInf.addBody(varMap[CHAT_TEXT].toString());
-            }
-
-            if (!findNeighbor(addrInfo))
-            {
-                addNeighbor(addrInfo);
-            }
-
-            // LAST_PORT and LAST_IP to neighbors if they are provided in
-            // the datagram
-            bool isDirect = true;
-            if (varMap.contains(LAST_PORT) && varMap.contains(LAST_IP))
-            {
-                isDirect = false;
-                QHostAddress lastAddress(varMap[LAST_IP].toInt());
-                int lastPort = varMap[LAST_PORT].toInt();
-                AddrInfo lastAddrInfo(lastAddress, lastPort);
-
-                if (!findNeighbor(lastAddrInfo))
-                {
-                    addNeighbor(lastAddrInfo);
-                }
-            }
-
-            mesInf.addLastRoute(address.toIPv4Address(), (quint16)port);
-
-            findNeighbor(addrInfo)->receiveMessage(mesInf, addrInfo, isDirect);
-        }
-        else if (varMap.contains(DEST)
-                 && varMap.contains(HOP_LIMIT))
-        {
-            // received private message!
-
+            // This is a point-to-point message
             // Get DEST, HOP_LIMIT, and ORIGIN
             QString dest(varMap[DEST].toString());
             int hopLimit = varMap[HOP_LIMIT].toInt();
@@ -415,9 +334,44 @@ void NetSocket::gotReadyRead()
             }
             if (priv) delete priv;
         }
+        else if (varMap.contains(SEARCH))
+        {
+            // This is a search message
+            QString searchTerms = varMap[SEARCH].toString();
+            QString origin = varMap[ORIGIN].toString();
+            int budget = varMap[BUDGET].toInt();
+
+            // Drop search requests that I sent
+            if (origin == m_hostName)
+            {
+                return;
+            }
+
+            if (budget > 0)
+            {
+                qDebug() << "Received good search request: " << searchTerms;
+                QList<QString> fileNames;
+                QList<QByteArray> hashes;
+                if (GlobalFiles->findFile(searchTerms, fileNames, hashes))
+                {
+                    qDebug() << "Found matches for search request; sending reply";
+                    sendSearchReply(searchTerms, fileNames, hashes, origin);
+                }
+
+                budget--;
+                if (budget > 0)
+                {
+                    sendSearchRequest(searchTerms, budget, origin);
+                }
+            }
+            else
+            {
+                qDebug() << "Received search request w/budget <= 0";
+            }
+        }
         else if (varMap.contains(WANT))
         {
-            // received a status message!
+            // This is a status message
             QVariantMap remoteStatus(varMap[WANT].toMap());
 
             if (!findNeighbor(addrInfo))
@@ -426,16 +380,86 @@ void NetSocket::gotReadyRead()
             }
             findNeighbor(addrInfo)->receiveStatus(remoteStatus);
         }
+        else if (varMap.contains(MESSAGE))
+        {
+            // This is a rumor message
+
+            // Add sender to neighbors
+            if (!findNeighbor(addrInfo))
+            {
+                addNeighbor(addrInfo);
+            }
+
+            // Extract top-level entries in map
+            QVariantMap mesMap = varMap[MESSAGE].toMap();
+            QByteArray sig = varMap[SIG].toByteArray();
+            QByteArray pubKey = varMap[PUBKEY].toByteArray();
+            QList<QVariant> signers = varMap[PUBKEY_SIGNERS].toList();
+
+            // Create and populate MessageInfo with chat text, signature,
+            // lastRoute
+            MessageInfo mesInf(mesMap[ORIGIN].toString(), mesMap[SEQ_NO].toInt());
+
+            if (mesMap.contains(CHAT_TEXT))
+            {
+                mesInf.addBody(mesMap[CHAT_TEXT].toString());
+            }
+
+            // Before checking signature, add the public key to our store of
+            // public keys
+            GlobalCrypto->addPubKey(mesInf.m_host, pubKey);
+
+            bool validSig = GlobalCrypto->checkSig(mesInf.m_host, mesMap, sig);
+            mesInf.addSig(sig, validSig);
+            if (validSig) qDebug() << "VALID SIGNATURE FROM " << mesInf.m_host;
+
+            // LAST_PORT and LAST_IP to neighbors if they are provided in
+            // the datagram
+            bool isDirect = true;
+            if (varMap.contains(LAST_PORT) && varMap.contains(LAST_IP))
+            {
+                isDirect = false;
+                QHostAddress lastAddress(varMap[LAST_IP].toInt());
+                int lastPort = varMap[LAST_PORT].toInt();
+                AddrInfo lastAddrInfo(lastAddress, lastPort);
+
+                if (!findNeighbor(lastAddrInfo))
+                {
+                    addNeighbor(lastAddrInfo);
+                }
+            }
+            mesInf.addLastRoute(address.toIPv4Address(), (quint16)port);
+
+            // If we don't already trust this individual, check their key
+            // signers to see if we trust any of them. If so, request the sig
+            if (validSig && !GlobalCrypto->isTrusted(mesInf.m_host))
+            {
+                // check signers one by one to see if we trust any
+                for (int i = 0; i < signers.count(); i++)
+                {
+                    if (GlobalCrypto->isTrusted(signers[i].toString()))
+                    {
+                        // TODO send SigRequest
+                        break;
+                    }
+                }
+            }
+
+            // Register this message
+            findNeighbor(addrInfo)->receiveMessage(mesInf, addrInfo, isDirect);
+        }
+        else
+        {
+            // Not a point-to-point, search request, status, or rumor message.
+            // Something went wrong!
+            qDebug() << "RECEIVED INVALID MESSAGE TYPE";
+        }
     }
 }
 
 void NetSocket::inputMessage(QString& message)
 {
-    MessageInfo mesInf;
-    mesInf.m_isRoute = false;
-    mesInf.m_body = message;
-    mesInf.m_host = m_hostName;
-    mesInf.m_seqNo = m_seqNo;
+    MessageInfo mesInf(message, m_hostName, m_seqNo);
 
     m_seqNo++;
 
@@ -482,16 +506,31 @@ void NetSocket::sendMessage(MessageInfo& mesInf,
                             int port,
                             bool startTimer)
 {
-    // TODO: change message / route-message map to conform to new standard
-    QVariantMap varMap;
-    if (!mesInf.m_isRoute) varMap.insert(CHAT_TEXT, mesInf.m_body);
-    varMap.insert(ORIGIN, mesInf.m_host);
-    varMap.insert(SEQ_NO, mesInf.m_seqNo);
+    QVariantMap mes;
+    if (!mesInf.m_isRoute) mes.insert(CHAT_TEXT, mesInf.m_body);
+    mes.insert(ORIGIN, mesInf.m_host);
+    mes.insert(SEQ_NO, mesInf.m_seqNo);
     if (mesInf.m_hasLastRoute)
     {
-        varMap.insert(LAST_IP, mesInf.m_lastIP);
-        varMap.insert(LAST_PORT, mesInf.m_lastPort);
+        mes.insert(LAST_IP, mesInf.m_lastIP);
+        mes.insert(LAST_PORT, mesInf.m_lastPort);
     }
+
+    QVariantMap varMap;
+    varMap.insert(MESSAGE, mes);
+    if (mesInf.m_host == m_hostName)
+    {
+        varMap.insert(SIG, GlobalCrypto->sign(mes));
+        varMap.insert(PUBKEY, GlobalCrypto->pubKeyVal());
+        varMap.insert(PUBKEY_SIGNERS, GlobalCrypto->keySigList());
+    }
+    else
+    {
+        varMap.insert(SIG, mesInf.m_sig);
+        varMap.insert(PUBKEY, GlobalCrypto->pubKeyVal(mesInf.m_host));
+        varMap.insert(PUBKEY_SIGNERS, GlobalCrypto->keySigList(mesInf.m_sig));
+    }
+
     sendMap(varMap, address, port);
 
     AddrInfo addrInfo(address, port);
@@ -509,16 +548,23 @@ void NetSocket::sendMessage(MessageInfo& mesInf,
 
 void NetSocket::sendStatus(QHostAddress address, int port)
 {
-    // TODO: change status message map to conform to new standard
     QVariantMap* status = GlobalMessages->getStatus();
     QVariantMap statusMessage;
     statusMessage.insert(WANT, *status);
+    statusMessage.insert(ORIGIN, m_hostName);
     delete status;
 
+    // TODO change status message to new standard
+    /*QVariantMap out;
+    out.insert(PUBKEY, GlobalCrypto->pubKeyVal());
+    out.insert(PUBKEY_SIGNERS, GlobalCrypto->keySigList());
+    out.insert(SIG, GlobalCrypto->sign(statusMessage));
+    out.insert(MESSAGE, statusMessage);
+    sendMap(out, address, port);*/
     sendMap(statusMessage, address, port);
 }
 
-void NetSocket::sendMap(QVariantMap& varMap, QHostAddress address, int port)
+void NetSocket::sendMap(const QVariantMap& varMap, QHostAddress address, int port)
 {
     QByteArray datagram;
     datagram.resize(sizeof(varMap));
@@ -528,7 +574,7 @@ void NetSocket::sendMap(QVariantMap& varMap, QHostAddress address, int port)
     writeDatagram(datagram, address, port);
 }
 
-void NetSocket::sendMap(QVariantMap& varMap, AddrInfo& addr)
+void NetSocket::sendMap(const QVariantMap& varMap, const AddrInfo& addr)
 {
     if (!addr.m_isDns)
     {
@@ -606,10 +652,7 @@ void NetSocket::sendPrivate(QString& dest, QString& chatText)
 
 void NetSocket::sendRandRouteRumor()
 {
-    MessageInfo mesInf;
-    mesInf.m_isRoute = true;
-    mesInf.m_host = m_hostName;
-    mesInf.m_seqNo = m_seqNo;
+    MessageInfo mesInf(m_hostName, m_seqNo);
 
     m_seqNo++;
 

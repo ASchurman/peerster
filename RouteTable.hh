@@ -5,7 +5,8 @@
 #include <QHash>
 #include <QPair>
 
-#include "Common.hh"
+#include "messageinfo.hh"
+#include "addrinfo.hh"
 
 class RouteTable : public QObject
 {
