@@ -36,7 +36,8 @@ NetSocket* GlobalSocket;
 #define SIG "Sig"
 #define PUBKEY "PubKey"
 #define PUBKEY_SIGNERS "PubKeySigners"
-#define CRYPT "Crypt"
+#define CRYPT_DATA "CryptData"
+#define CRYPT_KEY "CryptKey"
 #define CHALLENGE "Challenge"
 #define CRYPT_PUBKEY "CryptPubKey"
 #define PUBKEY_SIG "PubKeySig"
@@ -214,125 +215,156 @@ void NetSocket::gotReadyRead()
         QDataStream dataStream(&datagram, QIODevice::ReadOnly);
         dataStream >> varMap;
 
-        if (varMap.contains(DEST))
+        if (varMap.contains(HOP_LIMIT))
         {
             // This is a point-to-point message
-            // Get DEST, HOP_LIMIT, and ORIGIN
-            QString dest(varMap[DEST].toString());
+
+            // Extract the top-level entries
             int hopLimit = varMap[HOP_LIMIT].toInt();
+            QVariantMap mes = varMap[MESSAGE].toMap();
+            QByteArray sig = varMap[SIG].toByteArray();
 
-            QString origin;
-            if (varMap.contains(ORIGIN)) origin = varMap[ORIGIN].toString();
+            // Extract DEST, ORIGIN, and CRYPT from the MESSAGE
+            QString dest(mes[DEST].toString());
+            QString origin(mes[ORIGIN].toString());
+            QByteArray crypt = mes[CRYPT_DATA].toByteArray();
+            QByteArray cryptKey = mes[CRYPT_KEY].toByteArray();
 
-            // Construct PrivateMessage object by looking at the rest of the map
-            PrivateMessage* priv = NULL;
-            if (varMap.contains(CHAT_TEXT))
-            {
-                QString chatText(varMap[CHAT_TEXT].toString());
-                priv = new PrivateChat(dest, hopLimit, chatText, origin);
-            }
-            else if (varMap.contains(BLOCK_REQ))
-            {
-                QByteArray blockReq = varMap[BLOCK_REQ].toByteArray();
-                priv = new PrivateBlockReq(dest, hopLimit, blockReq, origin);
-            }
-            else if (varMap.contains(BLOCK_REP))
-            {
-                QByteArray blockRep = varMap[BLOCK_REP].toByteArray();
-                QByteArray data = varMap[DATA].toByteArray();
-                priv = new PrivateBlockRep(dest, hopLimit, blockRep, data, origin);
-            }
-            else if (varMap.contains(SEARCH_REP)
-                     && varMap.contains(MATCH_NAMES)
-                     && varMap.contains(MATCH_IDS))
-            {
-                QString searchTerms = varMap[SEARCH_REP].toString();
-                QVariantList resultNames = varMap[MATCH_NAMES].toList();
-                QVariantList resultIds = varMap[MATCH_IDS].toList();
-                priv = new PrivateSearchRep(dest,
-                                            hopLimit,
-                                            searchTerms,
-                                            resultNames,
-                                            resultIds,
-                                            origin);
-            }
-            else
-            {
-                qDebug() << "Received private without content";
-                return;
-            }
-
-            // Process the PrivateMessage we constructed
             if (dest == m_hostName)
             {
-                // this private message is meant for me
-                switch(priv->type())
+                // I am the recipient of this private message!
+
+                // Decrypt the message
+                QVariantMap decrypted = GlobalCrypto->decryptMap(crypt, cryptKey);
+                if (decrypted.isEmpty())
                 {
-                    case PrivateMessage::Chat:
-                    {
-                        PrivateChat* privChat = (PrivateChat*)priv;
+                    qDebug() << "Decrypted map is empty!!";
+                    return;
+                }
 
-                        // don't print a private message that I send to myself;
-                        // it already got printed when I sent it
-                        if (priv->m_origin != m_hostName)
-                        {
-                            GlobalChatDialog->printPrivate(*privChat);
-                        }
-                        break;
-                    }
-                    case PrivateMessage::BlockReq:
-                    {
-                        PrivateBlockReq* blockReq = (PrivateBlockReq*)priv;
+                // Construct a PrivateMessage object by looking at the decrypted
+                // map
+                PrivateMessage* priv = NULL;
+                if (decrypted.contains(CHAT_TEXT))
+                {
+                    QString chatText(decrypted[CHAT_TEXT].toString());
+                    priv = new PrivateChat(dest, hopLimit, chatText, origin);
+                }
+                else if (decrypted.contains(BLOCK_REQ))
+                {
+                    QByteArray blockReq = decrypted[BLOCK_REQ].toByteArray();
+                    priv = new PrivateBlockReq(dest, hopLimit, blockReq, origin);
+                }
+                else if (decrypted.contains(BLOCK_REP))
+                {
+                    QByteArray blockRep = decrypted[BLOCK_REP].toByteArray();
+                    QByteArray data = decrypted[DATA].toByteArray();
+                    priv = new PrivateBlockRep(dest, hopLimit, blockRep, data, origin);
+                }
+                else if (decrypted.contains(SEARCH_REP)
+                         && decrypted.contains(MATCH_NAMES)
+                         && decrypted.contains(MATCH_IDS))
+                {
+                    QString searchTerms = decrypted[SEARCH_REP].toString();
+                    QVariantList resultNames = decrypted[MATCH_NAMES].toList();
+                    QVariantList resultIds = decrypted[MATCH_IDS].toList();
+                    priv = new PrivateSearchRep(dest,
+                                                hopLimit,
+                                                searchTerms,
+                                                resultNames,
+                                                resultIds,
+                                                origin);
+                }
+                else // TODO add support for new types of private messages related to trust
+                {
+                    qDebug() << "Received private without content";
+                    return;
+                }
 
-                        qDebug() << "Got a block request";
-                        QByteArray block;
-                        if (GlobalFiles->findBlock(blockReq->m_hash, block))
-                        {
-                            PrivateBlockRep blockRep(blockReq->m_origin,
-                                                     10,
-                                                     blockReq->m_hash,
-                                                     block,
-                                                     m_hostName);
-                            sendPrivate(&blockRep);
-                        }
-                        break;
-                    }
-                    case PrivateMessage::BlockRep:
-                    {
-                        PrivateBlockRep* blockRep = (PrivateBlockRep*)priv;
-                        GlobalFiles->addBlock(blockRep->m_hash, blockRep->m_data);
-                        break;
-                    }
-                    case PrivateMessage::SearchRep:
-                    {
-                        PrivateSearchRep* searchRep = (PrivateSearchRep*)priv;
+                // Verify the signature
+                priv->m_validSig = GlobalCrypto->checkSig(origin, mes, sig);
+                if (priv->m_validSig)
+                {
+                    qDebug() << "VALID SIG IN PRIVATE FROM " << origin;
+                }
+                else
+                {
+                    qDebug() << "INVALID SIG IN PRIVATE FROM " << origin;
+                }
 
-                        for (int i = 0; i < searchRep->m_resultFileNames.count(); i++)
-                        {
-                            QString fileName = searchRep->m_resultFileNames[i].toString();
-                            QByteArray hash = searchRep->m_resultHashes[i].toByteArray();
-                            emit gotSearchResult(searchRep->m_searchTerms,
-                                                 fileName,
-                                                 hash,
-                                                 searchRep->m_origin);
-                        }
-                        break;
-                    }
-                    default:
+                // Process the PrivateMessage we constructed. Ignore privates
+                // with invalid signatures, except chat messages, which we'll
+                // display differently to the user in GlobalChatDialog
+                if (priv->m_validSig || priv->type() == PrivateMessage::Chat)
+                {
+                    switch(priv->type())
                     {
-                        qDebug() << "Trying to process undef PrivateMessage";
-                        break;
+                        case PrivateMessage::Chat:
+                        {
+                            PrivateChat* privChat = (PrivateChat*)priv;
+
+                            // don't print a private message that I send to myself;
+                            // it already got printed when I sent it
+                            if (priv->m_origin != m_hostName)
+                            {
+                                GlobalChatDialog->printPrivate(*privChat);
+                            }
+                            break;
+                        }
+                        case PrivateMessage::BlockReq:
+                        {
+                            PrivateBlockReq* blockReq = (PrivateBlockReq*)priv;
+
+                            qDebug() << "Got a block request";
+                            QByteArray block;
+                            if (GlobalFiles->findBlock(blockReq->m_hash, block))
+                            {
+                                PrivateBlockRep blockRep(blockReq->m_origin,
+                                                         10,
+                                                         blockReq->m_hash,
+                                                         block,
+                                                         m_hostName);
+                                sendPrivate(&blockRep);
+                            }
+                            break;
+                        }
+                        case PrivateMessage::BlockRep:
+                        {
+                            PrivateBlockRep* blockRep = (PrivateBlockRep*)priv;
+                            GlobalFiles->addBlock(blockRep->m_hash, blockRep->m_data);
+                            break;
+                        }
+                        case PrivateMessage::SearchRep:
+                        {
+                            PrivateSearchRep* searchRep = (PrivateSearchRep*)priv;
+
+                            for (int i = 0; i < searchRep->m_resultFileNames.count(); i++)
+                            {
+                                QString fileName = searchRep->m_resultFileNames[i].toString();
+                                QByteArray hash = searchRep->m_resultHashes[i].toByteArray();
+                                emit gotSearchResult(searchRep->m_searchTerms,
+                                                     fileName,
+                                                     hash,
+                                                     searchRep->m_origin);
+                            }
+                            break;
+                        }
+                        default:
+                        {
+                            qDebug() << "Trying to process undef PrivateMessage";
+                            break;
+                        }
                     }
                 }
+                if (priv) delete priv;
             }
             else if (hopLimit - 1 > 0 && m_forward)
             {
-                // Route the PrivateMessage to another host
-                priv->m_hopLimit--;
-                qDebug() << "Routing private w/DEST = " << dest;
-                sendPrivate(priv);
+                // Forward this private message
+                qDebug() << "Routing private w/DEST = " << dest << ", HOP_LIMIT = " << hopLimit-1;
+                varMap[HOP_LIMIT] = hopLimit - 1;
+                sendPrivate(varMap);
             }
-            if (priv) delete priv;
         }
         else if (varMap.contains(SEARCH))
         {
@@ -588,57 +620,92 @@ void NetSocket::sendMap(const QVariantMap& varMap, const AddrInfo& addr)
 
 void NetSocket::sendPrivate(PrivateMessage* priv)
 {
-    // TODO: Change private message format to conform to new standard
     AddrInfo addr;
 
     if (GlobalRoutes->getNextHop(priv->m_dest, addr))
     {
-        QVariantMap varMap;
-        varMap.insert(DEST, priv->m_dest);
-        varMap.insert(HOP_LIMIT, priv->m_hopLimit);
-        if (priv->hasOrigin()) varMap.insert(ORIGIN, priv->m_origin);
+        // Make top-level map, out
+        QVariantMap out;
+        out.insert(HOP_LIMIT, priv->m_hopLimit);
 
+        // Make MESSAGE map, contained in the top-level map
+        QVariantMap mes;
+        mes.insert(DEST, priv->m_dest);
+        if (priv->hasOrigin()) mes.insert(ORIGIN, priv->m_origin);
+
+        // Make the CRYPT map and encrypt it after populating it
+        QVariantMap crypt;
         switch(priv->type())
         {
             case PrivateMessage::Chat:
             {
                 PrivateChat* privChat = (PrivateChat*)priv;
-                varMap.insert(CHAT_TEXT, privChat->m_text);
+                crypt.insert(CHAT_TEXT, privChat->m_text);
                 break;
             }
             case PrivateMessage::BlockReq:
             {
                 PrivateBlockReq* blockReq = (PrivateBlockReq*)priv;
-                varMap.insert(BLOCK_REQ, blockReq->m_hash);
+                crypt.insert(BLOCK_REQ, blockReq->m_hash);
                 break;
             }
             case PrivateMessage::BlockRep:
             {
                 PrivateBlockRep* blockRep = (PrivateBlockRep*)priv;
-                varMap.insert(BLOCK_REP, blockRep->m_hash);
-                varMap.insert(DATA, blockRep->m_data);
+                crypt.insert(BLOCK_REP, blockRep->m_hash);
+                crypt.insert(DATA, blockRep->m_data);
                 break;
             }
             case PrivateMessage::SearchRep:
             {
                 PrivateSearchRep* searchRep = (PrivateSearchRep*)priv;
-                varMap.insert(SEARCH_REP, searchRep->m_searchTerms);
-                varMap.insert(MATCH_NAMES, searchRep->m_resultFileNames);
-                varMap.insert(MATCH_IDS, searchRep->m_resultHashes);
+                crypt.insert(SEARCH_REP, searchRep->m_searchTerms);
+                crypt.insert(MATCH_NAMES, searchRep->m_resultFileNames);
+                crypt.insert(MATCH_IDS, searchRep->m_resultHashes);
                 break;
             }
-            default:
+            default: // TODO add support for new PrivateMessage types related to trust
             {
                 qDebug() << "Trying to send undef PrivateMessage";
+                return;
             }
         }
 
-        sendMap(varMap, addr);
+        QByteArray cryptKey;
+        QByteArray cryptArray = GlobalCrypto->encrypt(priv->m_dest,
+                                                      crypt,
+                                                      &cryptKey);
+
+        mes.insert(CRYPT_DATA, cryptArray);
+        mes.insert(CRYPT_KEY, cryptKey);
+        out.insert(MESSAGE, mes);
+
+        // Make signature and add it to the top-level map
+        QByteArray sig = GlobalCrypto->sign(mes);
+        out.insert(SIG, sig);
+
+        sendMap(out, addr);
     }
     else
     {
         // There's no route table entry for dest
         qDebug() << "Cannot send private message to " << priv->m_dest;
+    }
+}
+
+void NetSocket::sendPrivate(const QVariantMap& priv)
+{
+    AddrInfo addr;
+    QString dest = priv[MESSAGE].toMap()[DEST].toString();
+
+    if (GlobalRoutes->getNextHop(dest, addr))
+    {
+        sendMap(priv, addr);
+    }
+    else
+    {
+        // There's no route table entry for dest
+        qDebug() << "Cannot send private message to " << dest;
     }
 }
 

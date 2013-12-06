@@ -46,7 +46,9 @@ Crypto::Crypto()
     qDebug() << "My public key: " << pubKeyVal().toHex();
 }
 
-QByteArray Crypto::encrypt(const QString& dest, const QByteArray& data)
+QByteArray Crypto::encrypt(const QString& dest,
+                           const QByteArray& data,
+                           QByteArray* cryptKey)
 {
     if (!m_pubTable.contains(dest))
     {
@@ -55,24 +57,47 @@ QByteArray Crypto::encrypt(const QString& dest, const QByteArray& data)
     }
 
     QCA::SecureArray plainText(data);
-    QCA::SecureArray result = m_pubTable[dest].encrypt(plainText, QCA::EME_PKCS1_OAEP);
+
+    // Create the AES key
+    QCA::SymmetricKey key(32);
+
+    // Encypt the AES key with the user's public key and place it in cryptKey
+    *cryptKey = m_pubTable[dest].encrypt(key, QCA::EME_PKCS1_OAEP).toByteArray();
+
+    // Encrypt the data with the AES key
+    QCA::Cipher cipher(QString("aes256"), QCA::Cipher::CBC,
+                       QCA::Cipher::DefaultPadding,
+                       QCA::Encode, key);
+    QCA::SecureArray result = cipher.process(plainText);
+    if (!cipher.ok()) qDebug() << "ENCRYPT ERROR with AES";
+
+    // Return the encrypted data
     return result.toByteArray();
 }
 
-QByteArray Crypto::decrypt(const QByteArray& data)
+QByteArray Crypto::decrypt(const QByteArray& data, const QByteArray& cryptKey)
 {
     QCA::SecureArray cipherText(data);
-    QCA::SecureArray plainText;
+    QCA::SecureArray encryptedKey(cryptKey);
+    QCA::SymmetricKey key;
 
-    if (0 == m_priv.decrypt(cipherText, &plainText, QCA::EME_PKCS1_OAEP))
+    // Decrypt the AES key with my private key
+    if (0 == m_priv.decrypt(encryptedKey, &key, QCA::EME_PKCS1_OAEP))
     {
         qDebug() << "ERROR DECRYPTING";
         return QByteArray();
     }
-    else
-    {
-        return plainText.toByteArray();
-    }
+
+    // Now decrypt the data with the AES key
+    QCA::Cipher cipher(QString("aes256"), QCA::Cipher::CBC,
+                       QCA::Cipher::DefaultPadding,
+                       QCA::Decode, key);
+    QCA::SecureArray result = cipher.process(cipherText);
+    if (!cipher.ok()) qDebug() << "DECRYPT ERROR with AES";
+
+
+    // Return the decrypted data
+    return result.toByteArray();
 }
 
 QByteArray Crypto::sign(const QByteArray& data)

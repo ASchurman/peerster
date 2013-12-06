@@ -69,6 +69,7 @@ signals:
 private:
     // Send a private message of any type
     void sendPrivate(PrivateMessage* priv);
+    void sendPrivate(const QVariantMap& priv);
 
     void sendMap(const QVariantMap& varMap, QHostAddress address, int port);
     void sendMap(const QVariantMap& varMap, const AddrInfo& addr);

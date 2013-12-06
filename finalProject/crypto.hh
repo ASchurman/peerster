@@ -24,16 +24,23 @@ public:
     // decryption, and signing.
     ////////////////////////////////////////////////////////////////////////////
 
-    // Encrypts the given data with the given user's public key. Returns an
-    // empty array if there's no public key on record for the given user
-    QByteArray encrypt(const QString& dest, const QByteArray& data);
-    QByteArray encrypt(const QString& dest, const QVariantMap& map)
-    { return encrypt(dest, serialize(map)); }
+    // Encrypts the given data with an ephemeral AES256 key and encrypts the AES
+    // key with the given user's public key. Places the encrypted AES key in
+    // the argument cryptKey and returns the encrypted data. Returns an empty
+    // array if there's no public key on record for the given user.
+    QByteArray encrypt(const QString& dest,
+                       const QByteArray& data,
+                       QByteArray* cryptKey);
+    QByteArray encrypt(const QString& dest,
+                       const QVariantMap& map,
+                       QByteArray* cryptKey)
+    { return encrypt(dest, serialize(map), cryptKey); }
 
-    // Decrypts the given data with my private key
-    QByteArray decrypt(const QByteArray& data);
-    QVariantMap decryptMap(const QByteArray& data)
-    { return deserialize(decrypt(data)); }
+    // Decrypts the given encrypted AES256 key with my private key, then uses
+    // it to decrypt the given data. Returns the decrypted data.
+    QByteArray decrypt(const QByteArray& data, const QByteArray& cryptKey);
+    QVariantMap decryptMap(const QByteArray& data, const QByteArray& cryptKey)
+    { return deserialize(decrypt(data, cryptKey)); }
 
     // Signs the given data with my private key and returns the signature
     QByteArray sign(const QByteArray& data);

@@ -36,6 +36,9 @@ public:
     QString m_dest;
     int m_hopLimit;
 
+    // True if the signature on the private message is valid
+    bool m_validSig;
+
     // ORIGIN value which may not be defined for incoming messages
     bool hasOrigin() { return !m_origin.isEmpty(); }
     QString m_origin;

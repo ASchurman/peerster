@@ -15,15 +15,16 @@ Normal rumor messages will have the following format:
  Others will be able to request the actual signatures from me with a new type of
  point-to-point message described later.
 
-Point-to-point messages will be encrypted by the recipient's public key and will
-have the following format:
+Point-to-point messages will have the following format:
 -"HopLimit" which is outside of the signature, since it needs to be modified by
  middlemen.
 -"Message" which is a QVariantMap containing the following fields:
       -"Dest" as before
       -"Origin" as before
-      -"Crypt" which is a QVariantMap containing the remaining fields of the
-       point-to-point message
+      -"CryptKey" which is a QByteArray containing an ephemeral AES256 key
+       encrypted by the recipient's public key
+      -"CryptData" which is a QVariantMap containing the remaining fields of the
+       point-to-point message, encrypted by the AES256 key in the CryptKey field
 -"Sig" which is a signature for "Message".
 
 Key exchange with only rumor messages is vulnerable to man in the middle
