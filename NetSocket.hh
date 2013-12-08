@@ -52,6 +52,10 @@ public:
 
     void requestBlock(QByteArray& hash, QString& host);
 
+    void beginTrustChallenge(const QString& host,
+                             const QString& question,
+                             const QString& answer);
+
     QString m_hostName;
 
 public slots:

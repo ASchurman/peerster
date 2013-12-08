@@ -20,6 +20,7 @@ class ChatDialog : public QDialog
 
 public:
     ChatDialog();
+    QString getChallengeAnswer(const QString& origin, const QString& question);
 
 public slots:
     void gotTextChanged();
@@ -37,6 +38,7 @@ public slots:
     void printSearchResult(QString& fileName, QString& origin, QString& hash);
     void searchResultDoubleClicked(int row);
     void repeatSearch();
+    void challenge();
 
 private:
     Search* m_pSearch;
@@ -63,6 +65,7 @@ private:
     QPushButton* m_pSearchFileButton;
     QPushButton* m_pCancelSearchButton;
     QPushButton* m_pRepeatSearchButton;
+    QPushButton* m_pChallengeButton;
 
     QString saveFileString();
     void setSearchResultHeaders();

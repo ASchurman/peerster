@@ -42,6 +42,7 @@ NetSocket* GlobalSocket;
 #define CRYPT_PUBKEY "CryptPubKey"
 #define PUBKEY_SIG "PubKeySig"
 #define SIG_REQ "SigRequest"
+#define SIGNER "Signer"
 #define SIG_REP "SigResponse"
 
 NetSocket::NetSocket()
@@ -275,7 +276,33 @@ void NetSocket::gotReadyRead()
                                                 resultIds,
                                                 origin);
                 }
-                else // TODO add support for new types of private messages related to trust
+                else if (decrypted.contains(CHALLENGE))
+                {
+                    QString challenge = decrypted[CHALLENGE].toString();
+                    priv = new PrivateChallenge(dest, hopLimit, origin, challenge);
+                }
+                else if (decrypted.contains(CRYPT_PUBKEY))
+                {
+                    QByteArray cryptPubKey = decrypted[CRYPT_PUBKEY].toByteArray();
+                    priv = new PrivateChallengeRep(dest, hopLimit, origin, cryptPubKey);
+                }
+                else if (decrypted.contains(PUBKEY_SIG))
+                {
+                    QByteArray sig = decrypted[PUBKEY_SIG].toByteArray();
+                    priv = new PrivateChallengeSig(dest, hopLimit, origin, sig);
+                }
+                else if (decrypted.contains(SIG_REQ))
+                {
+                    QString name = decrypted[SIG_REQ].toString();
+                    priv = new PrivateSigReq(dest, hopLimit, origin, name);
+                }
+                else if (decrypted.contains(SIG_REP))
+                {
+                    QString name = decrypted[SIGNER].toString();
+                    QByteArray sig = decrypted[SIG_REP].toByteArray();
+                    priv = new PrivateSigRep(dest, hopLimit, origin, name, sig);
+                }
+                else
                 {
                     qDebug() << "Received private without content";
                     return;
@@ -346,6 +373,89 @@ void NetSocket::gotReadyRead()
                                                      fileName,
                                                      hash,
                                                      searchRep->m_origin);
+                            }
+                            break;
+                        }
+                        case PrivateMessage::Challenge:
+                        {
+                            // Get an answer to the challenge question. If it's
+                            // nonempty, use it to encrypt my public key and
+                            // reply with it.
+                            PrivateChallenge* chal = (PrivateChallenge*)priv;
+                            QString answer = GlobalChatDialog->getChallengeAnswer(chal->m_origin,
+                                                                                  chal->m_challenge);
+                            if (!answer.isEmpty())
+                            {
+                                QByteArray cryptPubKey = GlobalCrypto->encryptKey(answer);
+                                PrivateChallengeRep rep(chal->m_origin,
+                                                        10,
+                                                        m_hostName,
+                                                        cryptPubKey);
+                                sendPrivate(&rep);
+                            }
+                            break;
+                        }
+                        case PrivateMessage::ChallengeResponse:
+                        {
+                            // Verify the response. If valid, sign his public
+                            // key and reply with the signature
+                            PrivateChallengeRep* rep = (PrivateChallengeRep*)priv;
+                            bool pass = GlobalCrypto->endChallenge(rep->m_origin,
+                                                                   rep->m_response);
+                            if (pass)
+                            {
+                                // He passed, so let's sign his key!
+                                QByteArray sig = GlobalCrypto->signKey(rep->m_origin);
+                                PrivateChallengeSig chalSig(rep->m_origin,
+                                                            10,
+                                                            m_hostName,
+                                                            sig);
+                                sendPrivate(&chalSig);
+                            }
+                            break;
+                        }
+                        case PrivateMessage::ChallengeSig:
+                        {
+                            // Add the signature of my public key to the store
+                            PrivateChallengeSig* challengeSig = (PrivateChallengeSig*)priv;
+                            GlobalCrypto->addKeySig(challengeSig->m_origin,
+                                                    challengeSig->m_sig);
+                            break;
+                        }
+                        case PrivateMessage::SignatureRequest:
+                        {
+                            // If the requested user signed our key, reply with
+                            // the signature
+                            PrivateSigReq* sigReq = (PrivateSigReq*)priv;
+                            QByteArray sig = GlobalCrypto->getKeySig(sigReq->m_name);
+                            if (!sig.isEmpty())
+                            {
+                                PrivateSigRep sigRep(sigReq->m_origin,
+                                                     10,
+                                                     m_hostName,
+                                                     sigReq->m_name,
+                                                     sig);
+                                sendPrivate(&sigRep);
+                            }
+                            break;
+                        }
+                        case PrivateMessage::SignatureResponse:
+                        {
+                            // Verify the signature. If valid, and we trust the
+                            // signer, then trust the sender and sign his key.
+                            PrivateSigRep* sigRep = (PrivateSigRep*)priv;
+                            if (GlobalCrypto->addTrust(sigRep->m_origin,
+                                                       sigRep->m_name,
+                                                       sigRep->m_sig))
+                            {
+                                // Valid signature by a trusted individual! Now
+                                // sign the sender's key
+                                QByteArray sig = GlobalCrypto->signKey(sigRep->m_origin);
+                                PrivateChallengeSig chalSig(sigRep->m_origin,
+                                                            10,
+                                                            m_hostName,
+                                                            sig);
+                                sendPrivate(&chalSig);
                             }
                             break;
                         }
@@ -462,6 +572,9 @@ void NetSocket::gotReadyRead()
             }
             mesInf.addLastRoute(address.toIPv4Address(), (quint16)port);
 
+            // Update our key sig list for the origin of this message
+            GlobalCrypto->updateKeySigList(mesInf.m_host, signers);
+
             // If we don't already trust this individual, check their key
             // signers to see if we trust any of them. If so, request the sig
             if (validSig && !GlobalCrypto->isTrusted(mesInf.m_host))
@@ -471,7 +584,12 @@ void NetSocket::gotReadyRead()
                 {
                     if (GlobalCrypto->isTrusted(signers[i].toString()))
                     {
-                        // TODO send SigRequest
+                        // Request the signature of this individual we trust
+                        PrivateSigReq sigReq(mesInf.m_host,
+                                             10,
+                                             m_hostName,
+                                             signers[i].toString());
+                        sendPrivate(&sigReq);
                         break;
                     }
                 }
@@ -664,7 +782,38 @@ void NetSocket::sendPrivate(PrivateMessage* priv)
                 crypt.insert(MATCH_IDS, searchRep->m_resultHashes);
                 break;
             }
-            default: // TODO add support for new PrivateMessage types related to trust
+            case PrivateMessage::Challenge:
+            {
+                PrivateChallenge* challenge = (PrivateChallenge*)priv;
+                crypt.insert(CHALLENGE, challenge->m_challenge);
+                break;
+            }
+            case PrivateMessage::ChallengeResponse:
+            {
+                PrivateChallengeRep* challengeRep = (PrivateChallengeRep*)priv;
+                crypt.insert(CRYPT_PUBKEY, challengeRep->m_response);
+                break;
+            }
+            case PrivateMessage::ChallengeSig:
+            {
+                PrivateChallengeSig* challengeSig = (PrivateChallengeSig*)priv;
+                crypt.insert(PUBKEY_SIG, challengeSig->m_sig);
+                break;
+            }
+            case PrivateMessage::SignatureRequest:
+            {
+                PrivateSigReq* sigReq = (PrivateSigReq*)priv;
+                crypt.insert(SIG_REQ, sigReq->m_name);
+                break;
+            }
+            case PrivateMessage::SignatureResponse:
+            {
+                PrivateSigRep* sigRep = (PrivateSigRep*)priv;
+                crypt.insert(SIGNER, sigRep->m_name);
+                crypt.insert(SIG_REP, sigRep->m_sig);
+                break;
+            }
+            default:
             {
                 qDebug() << "Trying to send undef PrivateMessage";
                 return;
@@ -795,5 +944,14 @@ void NetSocket::sendSearchReply(QString &searchTerms,
         varHashes.append(hashes[i]);
     }
     PrivateSearchRep priv(dest, 10, searchTerms, varFileNames, varHashes, m_hostName);
+    sendPrivate(&priv);
+}
+
+void NetSocket::beginTrustChallenge(const QString& host,
+                                    const QString& question,
+                                    const QString& answer)
+{
+    GlobalCrypto->startChallenge(host, answer);
+    PrivateChallenge priv(host, 10, m_hostName, question);
     sendPrivate(&priv);
 }

@@ -9,14 +9,14 @@
 class PrivateMessage
 {
 public:
-    PrivateMessage(QString& dest,
+    PrivateMessage(const QString& dest,
                    int hopLimit)
         : m_dest(dest), m_hopLimit(hopLimit), m_origin()
     { }
 
-    PrivateMessage(QString& dest,
+    PrivateMessage(const QString& dest,
                    int hopLimit,
-                   QString& origin)
+                   const QString& origin)
         : m_dest(dest), m_hopLimit(hopLimit), m_origin(origin)
     { }
 
@@ -28,7 +28,12 @@ public:
         Chat,
         BlockReq,
         BlockRep,
-        SearchRep
+        SearchRep,
+        Challenge,
+        ChallengeResponse,
+        ChallengeSig,
+        SignatureRequest,
+        SignatureResponse
     };
 
     virtual PrivateType type() = 0;
@@ -44,20 +49,99 @@ public:
     QString m_origin;
 };
 
+// Holds content of a trust challenge message
+class PrivateChallenge : public PrivateMessage
+{
+public:
+    PrivateChallenge(const QString& dest,
+                     int hopLimit,
+                     const QString& origin,
+                     const QString& challenge)
+        : PrivateMessage(dest, hopLimit, origin), m_challenge(challenge)
+    { }
+
+    PrivateType type() { return Challenge; }
+
+    QString m_challenge;
+};
+
+class PrivateChallengeRep : public PrivateMessage
+{
+public:
+    PrivateChallengeRep(const QString& dest,
+                        int hopLimit,
+                        const QString& origin,
+                        const QByteArray& response)
+        : PrivateMessage(dest, hopLimit, origin), m_response(response)
+    { }
+
+    PrivateType type() { return ChallengeResponse; }
+
+    QByteArray m_response;
+};
+
+class PrivateChallengeSig : public PrivateMessage
+{
+public:
+    PrivateChallengeSig(const QString& dest,
+                        int hopLimit,
+                        const QString& origin,
+                        const QByteArray& sig)
+        : PrivateMessage(dest, hopLimit, origin), m_sig(sig)
+    { }
+
+    PrivateType type() { return ChallengeSig; }
+
+    QByteArray m_sig;
+};
+
+class PrivateSigReq : public PrivateMessage
+{
+public:
+    PrivateSigReq(const QString& dest,
+                  int hopLimit,
+                  const QString& origin,
+                  const QString& name)
+        : PrivateMessage(dest, hopLimit, origin), m_name(name)
+    { }
+
+    PrivateType type() { return SignatureRequest; }
+
+    // Name of the individual whose signature we're requesting
+    QString m_name;
+};
+
+class PrivateSigRep : public PrivateMessage
+{
+public:
+    PrivateSigRep(const QString& dest,
+                  int hopLimit,
+                  const QString& origin,
+                  const QString& name,
+                  const QByteArray& sig)
+        : PrivateMessage(dest, hopLimit, origin), m_name(name), m_sig(sig)
+    { }
+
+    PrivateType type() { return SignatureResponse; }
+
+    QString m_name;
+    QByteArray m_sig;
+};
+
 // Holds content of a private chat message
 class PrivateChat : public PrivateMessage
 {
 public:
-    PrivateChat(QString& dest,
+    PrivateChat(const QString& dest,
                 int hopLimit,
-                QString& text)
+                const QString& text)
         : PrivateMessage(dest, hopLimit), m_text(text)
     { }
 
-    PrivateChat(QString& dest,
+    PrivateChat(const QString& dest,
                 int hopLimit,
-                QString& text,
-                QString& origin)
+                const QString& text,
+                const QString& origin)
         : PrivateMessage(dest, hopLimit, origin), m_text(text)
     { }
 
@@ -70,10 +154,10 @@ public:
 class PrivateBlockMessage : public PrivateMessage
 {
 public:
-    PrivateBlockMessage(QString& dest,
+    PrivateBlockMessage(const QString& dest,
                         int hopLimit,
-                        QByteArray& hash,
-                        QString& origin)
+                        const QByteArray& hash,
+                        const QString& origin)
         : PrivateMessage(dest, hopLimit, origin), m_hash(hash)
     { }
 
@@ -86,10 +170,10 @@ public:
 class PrivateBlockReq : public PrivateBlockMessage
 {
 public:
-    PrivateBlockReq(QString& dest,
+    PrivateBlockReq(const QString& dest,
                     int hopLimit,
-                    QByteArray& hash,
-                    QString& origin)
+                    const QByteArray& hash,
+                    const QString& origin)
         : PrivateBlockMessage(dest, hopLimit, hash, origin)
     { }
 
@@ -100,11 +184,11 @@ public:
 class PrivateBlockRep : public PrivateBlockMessage
 {
 public:
-    PrivateBlockRep(QString& dest,
+    PrivateBlockRep(const QString& dest,
                     int hopLimit,
-                    QByteArray& hash,
-                    QByteArray& data,
-                    QString& origin)
+                    const QByteArray& hash,
+                    const QByteArray& data,
+                    const QString& origin)
         : PrivateBlockMessage(dest, hopLimit, hash, origin), m_data(data)
     { }
 
@@ -117,12 +201,12 @@ public:
 class PrivateSearchRep : public PrivateMessage
 {
 public:
-    PrivateSearchRep(QString& dest,
+    PrivateSearchRep(const QString& dest,
                      int hopLimit,
-                     QString& searchTerms,
-                     QVariantList& resultFileNames,
-                     QVariantList& resultHashes,
-                     QString& origin)
+                     const QString& searchTerms,
+                     const QVariantList& resultFileNames,
+                     const QVariantList& resultHashes,
+                     const QString& origin)
         : PrivateMessage(dest, hopLimit, origin),
           m_searchTerms(searchTerms),
           m_resultFileNames(resultFileNames),

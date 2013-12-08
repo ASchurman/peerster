@@ -135,6 +135,26 @@ bool Crypto::isTrusted(const QString& name)
     return m_trusted.contains(name);
 }
 
+bool Crypto::addTrust(const QString& name,
+                      const QString& signer,
+                      const QByteArray& sig)
+{
+    if (isTrusted(signer)
+            && checkSig(signer, pubKeyVal(name), sig))
+    {
+        qDebug() << "Verified signature of " << signer;
+        qDebug() << "Now trusting " << name;
+        m_trusted.insert(name);
+        return true;
+    }
+    else
+    {
+        qDebug() << "Failed signature of " << signer;
+        qDebug() << "NOT trusting " << name;
+        return false;
+    }
+}
+
 void Crypto::addPubKey(const QString& name, const QByteArray& pubKey)
 {
     if (m_pubTable.contains(name))
@@ -176,6 +196,7 @@ bool Crypto::addKeySig(const QString& name, const QByteArray& sig)
     if (checkSig(name, pubKeyVal(), sig))
     {
         // Valid signature for user name!
+        qDebug() << "User " << name << " now trusts me!";
         m_keySigs.insert(name, sig);
         return true;
     }
@@ -188,16 +209,27 @@ bool Crypto::addKeySig(const QString& name, const QByteArray& sig)
 
 void Crypto::startChallenge(const QString& dest, const QString& answer)
 {
-    // TODO startChallenge
-
-    // if there's already a challenge started for dest, remove it and start a
-    // new one
+    m_challenges.insert(dest, TrustChallenge(dest, answer));
 }
 
 bool Crypto::endChallenge(const QString& dest, const QByteArray& cryptKey)
 {
-    // TODO endChallenge
-    return true;
+    if (m_challenges.contains(dest) && m_pubTable.contains(dest))
+    {
+        QByteArray pubKey = m_pubTable[dest].toRSA().n().toArray().toByteArray();
+        bool passed = m_challenges[dest].check(pubKey, cryptKey);
+        m_challenges.remove(dest);
+        if (passed) m_trusted.insert(dest);
+        return passed;
+    }
+    else
+    {
+        // We never even started a challenge with dest, or we don't have a
+        // public key on record for them, making it impossible to verify the
+        // response.
+        m_challenges.remove(dest);
+        return false;
+    }
 }
 
 QList<QVariant> Crypto::keySigList(const QString& name)
@@ -216,4 +248,14 @@ void Crypto::updateKeySigList(const QString& name,
                               const QList<QVariant> keySigList)
 {
     m_keySigLists.insert(name, keySigList);
+}
+
+QByteArray Crypto::encryptKey(const QString& chalAnswer)
+{
+    QCA::SymmetricKey key = TrustChallenge::makeKey(chalAnswer);
+    QCA::Cipher cipher(QString("aes256"), QCA::Cipher::CBC,
+                       QCA::Cipher::DefaultPadding,
+                       QCA::Encode, key);
+    QCA::SecureArray pubkey(pubKeyVal());
+    return cipher.process(pubkey).toByteArray();
 }

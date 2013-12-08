@@ -9,6 +9,7 @@
 #include "ChatDialog.hh"
 #include "NetSocket.hh"
 #include "FileStore.hh"
+#include "finalProject/crypto.hh"
 
 #define BROADCAST "Send to All"
 
@@ -49,6 +50,8 @@ ChatDialog::ChatDialog()
     // button to download a file
     m_pDownloadFileButton = new QPushButton("Download File from Selected Peer...", this);
 
+    m_pChallengeButton = new QPushButton("Trust Challenge Selected Peer...", this);
+
     // button to search for a file
     m_pSearchFileButton = new QPushButton("Search for File...", this);
 
@@ -76,6 +79,7 @@ ChatDialog::ChatDialog()
     m_pSendLayout = new QVBoxLayout();
     m_pSendLayout->addWidget(m_pSendOptions);
     m_pSendLayout->addWidget(m_pDownloadFileButton);
+    m_pSendLayout->addWidget(m_pChallengeButton);
     m_pSendLayout->addWidget(m_pMessageBox);
 
     // layout for the right side of the window, containing widgets for file-
@@ -121,6 +125,9 @@ ChatDialog::ChatDialog()
     connect(m_pDownloadFileButton, SIGNAL(clicked()),
             this, SLOT(newDownloadFile()));
 
+    connect(m_pChallengeButton, SIGNAL(clicked()),
+            this, SLOT(challenge()));
+
     connect(m_pSearchFileButton, SIGNAL(clicked()),
             this, SLOT(searchForFile()));
 
@@ -137,6 +144,53 @@ ChatDialog::ChatDialog()
             this, SLOT(showShareDirDialog()));
 
     resize(900, 600);
+}
+
+void ChatDialog::challenge()
+{
+    QString host = m_pSendOptions->currentItem()->text();
+    if (host == BROADCAST)
+    {
+        qDebug() << "Select a peer to challenge; cannot challenge 'Send to All'";
+        return;
+    }
+    else if (host == GlobalSocket->m_hostName)
+    {
+        qDebug() << "Cannot challenge yourself";
+        return;
+    }
+    else if (GlobalCrypto->isTrusted(host))
+    {
+        qDebug() << "You already trust " << host << "!";
+        return;
+    }
+
+    QString body("What will you ask ");
+    body.append(host);
+    body.append(" in order to trust him/her?");
+    QString question = QInputDialog::getText(this,
+                                             "Trust Challenge",
+                                             body);
+    if (question.isEmpty()) return;
+
+    QString answer;
+    while(1)
+    {
+        answer = QInputDialog::getText(this,
+                                       "Trust Challenge",
+                                       "What's the answer?");
+        if (answer.isEmpty())
+        {
+            return;
+        }
+        else if (answer.length() > 32)
+        {
+            qDebug() << "Answer must be <= 32 characters!";
+        }
+        else break;
+    }
+
+    GlobalSocket->beginTrustChallenge(host, question, answer);
 }
 
 void ChatDialog::setSearchResultHeaders()
@@ -422,6 +476,28 @@ QString ChatDialog::saveFileString()
         else
         {
             return fileName;
+        }
+    }
+}
+
+QString ChatDialog::getChallengeAnswer(const QString& origin,
+                                       const QString& question)
+{
+    QString body("User ");
+    body.append(origin);
+    body.append(" asks: ");
+    body.append(question);
+
+    while(1)
+    {
+        QString answer = QInputDialog::getText(this, "Trust Challenge", body);
+        if (answer.length() > 32)
+        {
+            qDebug() << "Answer must be <= 32 characters long";
+        }
+        else
+        {
+            return answer;
         }
     }
 }

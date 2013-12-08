@@ -82,11 +82,11 @@ public:
     // signature; else returns false.
     bool addKeySig(const QString& name, const QByteArray& sig);
 
-    // Starts a trust challenge with the given user.
-    void startChallenge(const QString& dest, const QString& answer);
+    // Signs a user's key and returns the signature
+    QByteArray signKey(const QString& name) { return sign(pubKeyVal(name)); }
 
-    // Verify the reponse for a trust challenge. Returns true if it passes.
-    bool endChallenge(const QString& dest, const QByteArray& cryptKey);
+    // Encrypts my public key with an AES key derived from chalAnswer
+    QByteArray encryptKey(const QString& chalAnswer);
 
     // Returns the signature associated with the given name. If no such
     // key exists, returns an empty array
@@ -101,8 +101,18 @@ public:
     // Updates the list of signers of a given individual's public key
     void updateKeySigList(const QString& name, const QList<QVariant> keySigList);
 
+    // Starts a trust challenge with the given user.
+    void startChallenge(const QString& dest, const QString& answer);
+
+    // Verify the reponse for a trust challenge. Returns true if it passes.
+    bool endChallenge(const QString& dest, const QByteArray& cryptKey);
+
     // Checks if the given user is trusted; returns true if trusted
     bool isTrusted(const QString& name);
+
+    // Verifies that sig is signer's signature of name's public key, and that
+    // I trust signer. If so, trust name and return true.
+    bool addTrust(const QString& name, const QString& signer, const QByteArray& sig);
 
 private:
     // Set of trusted origin names
