@@ -60,7 +60,7 @@ NetSocket::NetSocket()
     m_seqNo = 1;
 
     m_hostName.setNum(rand());
-    m_hostName.prepend("Alex");
+    m_hostName.prepend(QHostInfo::localHostName());
 
     connect(this, SIGNAL(readyRead()), this, SLOT(gotReadyRead()));
 
