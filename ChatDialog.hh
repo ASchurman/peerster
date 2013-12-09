@@ -25,8 +25,6 @@ public:
 public slots:
     void gotTextChanged();
     void printMessage(MessageInfo& mesInf);
-    void printPrivate(QString& chatText);
-    void printPrivate(QString& chatText, QString& sender);
     void printPrivate(PrivateChat& priv);
     void processNeighborLine();
     void addOriginForPrivates(QString& host);
@@ -39,6 +37,7 @@ public slots:
     void searchResultDoubleClicked(int row);
     void repeatSearch();
     void challenge();
+    void addTrust(const QString& host);
 
 private:
     Search* m_pSearch;

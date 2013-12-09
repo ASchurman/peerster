@@ -1,4 +1,5 @@
 #include "crypto.hh"
+#include "../ChatDialog.hh"
 
 #include <QDebug>
 #include <QDataStream>
@@ -157,6 +158,7 @@ bool Crypto::addTrust(const QString& name,
         qDebug() << "Verified signature of " << signer;
         qDebug() << "Now trusting " << name;
         m_trusted.insert(name);
+        GlobalChatDialog->addTrust(name);
         return true;
     }
     else
@@ -231,7 +233,11 @@ bool Crypto::endChallenge(const QString& dest, const QByteArray& cryptKey)
         QByteArray pubKey = m_pubTable[dest].toRSA().n().toArray().toByteArray();
         bool passed = m_challenges[dest].check(pubKey, cryptKey);
         m_challenges.remove(dest);
-        if (passed) m_trusted.insert(dest);
+        if (passed)
+        {
+            m_trusted.insert(dest);
+            GlobalChatDialog->addTrust(dest);
+        }
         return passed;
     }
     else

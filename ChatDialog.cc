@@ -238,6 +238,16 @@ void ChatDialog::gotTextChanged()
     }
 }
 
+void ChatDialog::addTrust(const QString& host)
+{
+    QList<QListWidgetItem*> items = m_pSendOptions->findItems(host,
+                                                              Qt::MatchFixedString);
+    if (items.count() > 0)
+    {
+        items[0]->setBackgroundColor(Qt::green);
+    }
+}
+
 void ChatDialog::printMessage(MessageInfo& mesInf)
 {
     if (!mesInf.m_isRoute)
@@ -252,36 +262,34 @@ void ChatDialog::printMessage(MessageInfo& mesInf)
         chatText.append("] ");
         chatText.append(mesInf.m_body);
 
+        if (mesInf.m_goodSig || mesInf.m_host == GlobalSocket->m_hostName)
+        {
+            m_pChatView->setTextColor(Qt::black);
+        }
+        else
+        {
+            m_pChatView->setTextColor(Qt::red);
+        }
         m_pChatView->append(chatText);
     }
 }
 
-void ChatDialog::printPrivate(QString& chatText)
-{
-    QString sender("Unknown");
-    printPrivate(chatText, sender);
-}
-
-void ChatDialog::printPrivate(QString& chatText, QString& sender)
-{
-    QString text("[");
-    text.append(sender);
-    text.append(", priv] ");
-    text.append(chatText);
-
-    m_pChatView->append(text);
-}
-
 void ChatDialog::printPrivate(PrivateChat& priv)
 {
-    if (priv.hasOrigin())
+    QString text("[");
+    text.append(priv.m_origin);
+    text.append(", priv] ");
+    text.append(priv.m_text);
+
+    if (priv.m_validSig || priv.m_origin == GlobalSocket->m_hostName)
     {
-        printPrivate(priv.m_text, priv.m_origin);
+        m_pChatView->setTextColor(Qt::black);
     }
     else
     {
-        printPrivate(priv.m_text);
+        m_pChatView->setTextColor(Qt::red);
     }
+    m_pChatView->append(text);
 }
 
 void ChatDialog::processNeighborLine()

@@ -60,10 +60,10 @@ then sends Charlie a point-to-point message with Alice's name in a field
 Charlie then verifies Alice's signature and trusts Bob by signing his public
 key and sending the signature as Alice did previously.
 
-This notion of trusted versus non-trusted public keys will be shown in the UI.
-A graphical distinction will be made between completely unsigned messages,
-messages signed by a non-trusted public key (and thus potentially the result of
-a man-in-the-middle attack), and messages signed by a trusted public key.
+The UI will reflect trust between users and the validity of signatures in
+received messages. If a user is trusted, their name will appear in green in
+the list of peers, and if a message is unsigned or has an invalid signature,
+it will appear in red in the chat window.
 
 In addition to the existing -noforward flag, two additional flags will be
 added for testing purposes.
