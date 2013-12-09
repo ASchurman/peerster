@@ -65,3 +65,9 @@ A graphical distinction will be made between completely unsigned messages,
 messages signed by a non-trusted public key (and thus potentially the result of
 a man-in-the-middle attack), and messages signed by a trusted public key.
 
+In addition to the existing -noforward flag, two additional flags will be
+added for testing purposes.
+-badsigning will cause peerster to always create invalid signatures.
+-badencryption will cause peerster to always create invalid cipher text in
+point-to-point messages.
+

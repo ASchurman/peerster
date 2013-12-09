@@ -61,6 +61,11 @@ public:
     // Returns an empty array if we don't have a public key for name
     QByteArray pubKeyVal(const QString& name);
 
+    // Sets flags to intentionally create invalid signatures and/or invalid
+    // encryption for testing purposes
+    void setBadSig() { m_badSig = true; }
+    void setBadCrypto() { m_badCrypto = true; }
+
 private:
     // My key pair
     QCA::PrivateKey m_priv;
@@ -71,6 +76,11 @@ private:
 
     QByteArray serialize(const QVariantMap& map);
     QVariantMap deserialize(const QByteArray& data);
+
+    // Flags for intentionally creating invalid signatures and/or invalid
+    // encryption for testing purposes
+    bool m_badCrypto;
+    bool m_badSig;
 
 
     // TRUST CHALLENGE MEMBERS /////////////////////////////////////////////////

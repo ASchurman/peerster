@@ -33,6 +33,9 @@ QList<QVariant> Crypto::keySigList()
 
 Crypto::Crypto()
 {
+    m_badCrypto = false;
+    m_badSig = false;
+
     // Create my private key
     m_priv = QCA::KeyGenerator().createRSA(RSA_BITS, RSA_EXP);
     if (m_priv.isNull())
@@ -71,8 +74,12 @@ QByteArray Crypto::encrypt(const QString& dest,
     QCA::SecureArray result = cipher.process(plainText);
     if (!cipher.ok()) qDebug() << "ENCRYPT ERROR with AES";
 
+    // Corrupt the ciphertext if m_badCrypto is set for testing purposes
+    QByteArray final = result.toByteArray();
+    if (m_badCrypto) final[0] = final[0] + 1;
+
     // Return the encrypted data
-    return result.toByteArray();
+    return final;
 }
 
 QByteArray Crypto::decrypt(const QByteArray& data, const QByteArray& cryptKey)
@@ -103,7 +110,12 @@ QByteArray Crypto::decrypt(const QByteArray& data, const QByteArray& cryptKey)
 QByteArray Crypto::sign(const QByteArray& data)
 {
     QCA::SecureArray message(data);
-    return m_priv.signMessage(message, QCA::EMSA3_MD5);
+    QByteArray result = m_priv.signMessage(message, QCA::EMSA3_MD5);
+
+    // Corrupt the signature if m_badSig is set for testing purposes
+    if (m_badSig) result[0] = result[0] + 1;
+
+    return result;
 }
 
 bool Crypto::checkSig(const QString& origin, const QByteArray& data, const QByteArray& sig)

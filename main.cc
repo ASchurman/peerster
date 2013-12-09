@@ -60,6 +60,14 @@ int main(int argc, char **argv)
         {
             GlobalSocket->noForward();
         }
+        else if (args[i] == "-badsigning")
+        {
+            GlobalCrypto->setBadSig();
+        }
+        else if (args[i] == "-badencryption")
+        {
+            GlobalCrypto->setBadCrypto();
+        }
         else
         {
             GlobalSocket->addNeighbor(args[i]);
