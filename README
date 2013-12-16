@@ -1,0 +1,125 @@
+For the final project, I added encryption, digital signatures, and a public key
+infrastructure to peerster.
+
+Upon start-up, peerster generates a 1024-bit RSA key pair.
+
+MESSAGE FORMAT
+==============
+Rumor messages (chat, route, and search requests) are modified to have the
+following format:
+-"Message" which contains a QVariantMap containing all the old fields for the
+ rumor message (excluding "Budget" if this is a search request).
+-"Sig" which contains a QByteArray signature for the serialized contents of the
+ "Message" field.
+-"Budget" if this is a search request. Budget must be outside of Message, since
+ it needs to be modified by intermediate nodes without invalidating the
+ signature.
+-"LastPort" and "LastIP" as before in peerster.
+-"PubKey" which contains a QByteArray of the sender's public key. Although
+ broadcasting the public key early and often through every rumor message
+ decreases this risk since there will presumably be multiple routes, this scheme
+ is vulnerable to man in the middle attacks. This risk is addressed with a
+ public key infrastructure, described below, that distinguishes between normal
+ and trusted key-user pairings.
+-"PubKeySigners" which contains a QList of the origin names that have signed my
+ public key and thus trust me. Others are able to request the actual
+ signatures from me with a new type of point-to-point message described below.
+
+Point-to-point messages have been modified to have the following format:
+-"Message" which is a QVariantMap containing the following fields:
+    -"Dest" as before in peerster
+    -"Origin" as before in peerster
+    -"CryptKey" which is a QByteArray containing an ephemeral AES256 key
+     encrypted by the destination's public key
+    -"CryptData" which is a QVariantMap containing the remaining fields of the
+     point-to-point message, encrypted by the AES256 key in the "CryptKey" field
+-"Sig" which contains a QByteArray signature for hte serialized contents of the
+ "Message" field.
+-"HopLimit" as before in peerster. This needs to be outside of "Message" since
+ it is modified by intermediate nodes without invalidating the signature.
+
+TRUST CHALLENGES
+================
+Key exchange with only rumor messages is vulnerable to man in the middle
+attacks, so the following scheme will be added to authenticate pairings between
+public keys and users.
+
+-Alice wants to authenticate that the public key she has for Bob truly is Bob's.
+-Alice sends Bob a point-to-point message (in the modified format above) with
+ the field "Challenge" containing a QString that challenges Bob with a question
+ that only Bob could answer. For example "Where did we first meet?" Alice comes
+ up with her own answer to this question and keeps it to herself.
+-Bob creates an answer to this question (maximum 32 characters) and interprets
+ it as an AES256 key, padding it with '\0' characters. Bob then encrypts his
+ public key with this AES256 key.
+-Bob sends Alice a point-to-point message (in the modified format above) with
+ the field "CryptPubKey" which is a QByteArray of his encrypted public key.
+-Using the answer she came up with, Alice forms an AES256 key in the same manner
+ that Bob did and decrypts Bob's public key. If decryption is successful and
+ the public key matches the key Alice has on record for Bob from his earlier
+ rumor messages, then Alice trusts that Bob's public key is authentic.
+-Alice signs Bob's public key and sends the signature back to Bob in a point-to-
+ point message (in the modified format above) with the field "PubKeySig"
+-Bob stores Alice's signature and now includes Alice's name in his
+ "PubKeySigners" list in future messages.
+
+Note that trust is not a reciprocal relationship. At the end of this example,
+Alice trusts Bob, but Bob does not trust Alice. Bob would need to initiate a
+challenge with Alice in order to establish trust in the other direction.
+
+In summary, the following point-to-point message types are added for trust
+challenges:
+
+-Challenges containing the field "Challenge"
+-Challenge responses containing the field "CryptPubKey"
+-Public key signatures for users who pass the challenge, containing the field
+ "PubKeySig"
+
+BUILDING THE WEB OF TRUST
+=========================
+Trust can also be established transitively. If Charlie trusts Alice and Alice
+trusts Bob, then Charlie should trust Bob. This is how such trust is
+established:
+
+-Alice and Bob went through the trust challenge as described in the example
+ above, so Alice trusts Bob. Suppose further that Charlie trusts Alice from a
+ similar challenge.
+-Whenever Charlie receives a public key from a non-trusted individual, he checks
+ "PubKeySigners" to see if he trusts any of the signers. If he does, he sends
+ a point-to-point message to the owner of the public key asking for the
+ signature of the trusted thrid party. In this case, when Charlie receives a
+ rumor from Bob, he would send Bob a message to Bob with Alice's name in the
+ field "SigRequest".
+-Bob sends Charlie a point-to-point message with Alice's name in a field
+ "Signer" and Alice's signature of Bob's public key in the field "SigResponse".
+-Charlie verifies Alice's signature. If it's valid, he trusts Bob by signing
+ Bob's public key and sending him the signature as described above for passed
+ trust challenges.
+
+In summary, the following point-to-point message types are added for
+establishing trust transitively:
+
+-Signature requests containing the field "SigRequest" with the signer's name in
+ it
+-Signature responses containing the field "Signer" with the signer's name in it
+ and the field "SigResponse" containing the signature
+
+BUILDING AND RUNNING
+====================
+Build and run peerster as before. In addition to the existing -noforward flag
+which can be passed to peerster, two additional flags are added for testing
+purposes:
+-badsigning causes peerster to always generate invalid signatures.
+-badencryption causes peerster to always create invalid ciphertext in point-to-
+ point messages.
+
+The UI reflects trust between users and the validity of signatures in received
+chat messages. If a user is trusted, the name appears in green in the list of
+peers, and if a message is unsigned or has an invalid signature it appears in
+red in the chat window.
+
+Note that although completely new files created for this project are in the
+finalProject directory, older peerster files were modified as well. The
+finalProject directory does not contain all of the work for this project; only
+the files created specifically for it.
+
