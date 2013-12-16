@@ -38,7 +38,8 @@ public:
 
     void sendSearchRequest(QString& searchTerms,
                            int budget,
-                           QString origin = QString());
+                           QString origin = QString(),
+                           QByteArray sig = QByteArray());
     void sendSearchReply(QString& searchTerms,
                          QList<QString>& fileNames,
                          QList<QByteArray>& hashes,

@@ -476,41 +476,6 @@ void NetSocket::gotReadyRead()
                 sendPrivate(varMap);
             }
         }
-        else if (varMap.contains(SEARCH))
-        {
-            // This is a search message
-            QString searchTerms = varMap[SEARCH].toString();
-            QString origin = varMap[ORIGIN].toString();
-            int budget = varMap[BUDGET].toInt();
-
-            // Drop search requests that I sent
-            if (origin == m_hostName)
-            {
-                return;
-            }
-
-            if (budget > 0)
-            {
-                qDebug() << "Received good search request: " << searchTerms;
-                QList<QString> fileNames;
-                QList<QByteArray> hashes;
-                if (GlobalFiles->findFile(searchTerms, fileNames, hashes))
-                {
-                    qDebug() << "Found matches for search request; sending reply";
-                    sendSearchReply(searchTerms, fileNames, hashes, origin);
-                }
-
-                budget--;
-                if (budget > 0)
-                {
-                    sendSearchRequest(searchTerms, budget, origin);
-                }
-            }
-            else
-            {
-                qDebug() << "Received search request w/budget <= 0";
-            }
-        }
         else if (varMap.contains(WANT))
         {
             // This is a status message
@@ -522,9 +487,10 @@ void NetSocket::gotReadyRead()
             }
             findNeighbor(addrInfo)->receiveStatus(remoteStatus);
         }
-        else if (varMap.contains(MESSAGE))
+        else if (varMap.contains(MESSAGE)
+                 || varMap.contains(BUDGET))
         {
-            // This is a rumor message
+            // This is a rumor message or a search request
 
             // Add sender to neighbors
             if (!findNeighbor(addrInfo))
@@ -538,46 +504,91 @@ void NetSocket::gotReadyRead()
             QByteArray pubKey = varMap[PUBKEY].toByteArray();
             QList<QVariant> signers = varMap[PUBKEY_SIGNERS].toList();
 
-            // Create and populate MessageInfo with chat text, signature,
-            // lastRoute
-            MessageInfo mesInf(mesMap[ORIGIN].toString(), mesMap[SEQ_NO].toInt());
-
-            if (mesMap.contains(CHAT_TEXT))
-            {
-                mesInf.addBody(mesMap[CHAT_TEXT].toString());
-            }
+            QString origin = mesMap[ORIGIN].toString();
 
             // Before checking signature, add the public key to our store of
             // public keys
-            GlobalCrypto->addPubKey(mesInf.m_host, pubKey);
+            GlobalCrypto->addPubKey(origin, pubKey);
 
-            bool validSig = GlobalCrypto->checkSig(mesInf.m_host, mesMap, sig);
-            mesInf.addSig(sig, validSig);
-            if (validSig) qDebug() << "VALID SIGNATURE FROM " << mesInf.m_host;
-
-            // LAST_PORT and LAST_IP to neighbors if they are provided in
-            // the datagram
-            bool isDirect = true;
-            if (varMap.contains(LAST_PORT) && varMap.contains(LAST_IP))
-            {
-                isDirect = false;
-                QHostAddress lastAddress(varMap[LAST_IP].toInt());
-                int lastPort = varMap[LAST_PORT].toInt();
-                AddrInfo lastAddrInfo(lastAddress, lastPort);
-
-                if (!findNeighbor(lastAddrInfo))
-                {
-                    addNeighbor(lastAddrInfo);
-                }
-            }
-            mesInf.addLastRoute(address.toIPv4Address(), (quint16)port);
+            bool validSig = GlobalCrypto->checkSig(origin, mesMap, sig);
+            if (validSig) qDebug() << "VALID SIGNATURE FROM " << origin;
 
             // Update our key sig list for the origin of this message
-            GlobalCrypto->updateKeySigList(mesInf.m_host, signers);
+            if (validSig) GlobalCrypto->updateKeySigList(origin, signers);
+
+            if (varMap.contains(BUDGET))
+            {
+                // This is a search request
+                QString searchTerms = mesMap[SEARCH].toString();
+                int budget = varMap[BUDGET].toInt();
+
+                // Drop search requests that I sent
+                if (origin == m_hostName)
+                {
+                    return;
+                }
+
+                if (budget > 0)
+                {
+                    qDebug() << "Received good search request: " << searchTerms;
+                    QList<QString> fileNames;
+                    QList<QByteArray> hashes;
+                    if (GlobalFiles->findFile(searchTerms, fileNames, hashes))
+                    {
+                        qDebug() << "Found matches for search request; sending reply";
+                        sendSearchReply(searchTerms, fileNames, hashes, origin);
+                    }
+
+                    budget--;
+                    if (budget > 0)
+                    {
+                        sendSearchRequest(searchTerms, budget, origin);
+                    }
+                }
+                else
+                {
+                    qDebug() << "Received search request w/budget <= 0";
+                }
+            }
+            else
+            {
+                // This is a chat or route rumor message
+
+                // Create and populate MessageInfo with chat text, signature,
+                // lastRoute
+                MessageInfo mesInf(origin, mesMap[SEQ_NO].toInt());
+
+                mesInf.addSig(sig, validSig);
+
+                if (mesMap.contains(CHAT_TEXT))
+                {
+                    mesInf.addBody(mesMap[CHAT_TEXT].toString());
+                }
+
+                // LAST_PORT and LAST_IP to neighbors if they are provided in
+                // the datagram
+                bool isDirect = true;
+                if (varMap.contains(LAST_PORT) && varMap.contains(LAST_IP))
+                {
+                    isDirect = false;
+                    QHostAddress lastAddress(varMap[LAST_IP].toInt());
+                    int lastPort = varMap[LAST_PORT].toInt();
+                    AddrInfo lastAddrInfo(lastAddress, lastPort);
+
+                    if (!findNeighbor(lastAddrInfo))
+                    {
+                        addNeighbor(lastAddrInfo);
+                    }
+                }
+                mesInf.addLastRoute(address.toIPv4Address(), (quint16)port);
+
+                // Register this message
+                findNeighbor(addrInfo)->receiveMessage(mesInf, addrInfo, isDirect);
+            }
 
             // If we don't already trust this individual, check their key
             // signers to see if we trust any of them. If so, request the sig
-            if (validSig && !GlobalCrypto->isTrusted(mesInf.m_host))
+            if (validSig && !GlobalCrypto->isTrusted(origin))
             {
                 // check signers one by one to see if we trust any
                 for (int i = 0; i < signers.count(); i++)
@@ -585,7 +596,7 @@ void NetSocket::gotReadyRead()
                     if (GlobalCrypto->isTrusted(signers[i].toString()))
                     {
                         // Request the signature of this individual we trust
-                        PrivateSigReq sigReq(mesInf.m_host,
+                        PrivateSigReq sigReq(origin,
                                              10,
                                              m_hostName,
                                              signers[i].toString());
@@ -594,9 +605,6 @@ void NetSocket::gotReadyRead()
                     }
                 }
             }
-
-            // Register this message
-            findNeighbor(addrInfo)->receiveMessage(mesInf, addrInfo, isDirect);
         }
         else
         {
@@ -704,13 +712,6 @@ void NetSocket::sendStatus(QHostAddress address, int port)
     statusMessage.insert(ORIGIN, m_hostName);
     delete status;
 
-    // TODO change status message to new standard
-    /*QVariantMap out;
-    out.insert(PUBKEY, GlobalCrypto->pubKeyVal());
-    out.insert(PUBKEY_SIGNERS, GlobalCrypto->keySigList());
-    out.insert(SIG, GlobalCrypto->sign(statusMessage));
-    out.insert(MESSAGE, statusMessage);
-    sendMap(out, address, port);*/
     sendMap(statusMessage, address, port);
 }
 
@@ -886,7 +887,8 @@ void NetSocket::requestBlock(QByteArray& hash, QString& host)
 
 void NetSocket::sendSearchRequest(QString &searchTerms,
                                   int budget,
-                                  QString origin)
+                                  QString origin,
+                                  QByteArray sig)
 {
     if (origin.isEmpty()) origin = m_hostName;
 
@@ -918,11 +920,26 @@ void NetSocket::sendSearchRequest(QString &searchTerms,
     }
     for (int i = 0; i < budgetAlloc.count(); i++)
     {
-        // TODO: Change search request map to conform to new standard (keep BUDGET outside of sig)
+        QVariantMap message;
         QVariantMap varMap;
-        varMap.insert(ORIGIN, origin);
-        varMap.insert(SEARCH, searchTerms);
+        message.insert(ORIGIN, origin);
+        message.insert(SEARCH, searchTerms);
+
+        varMap.insert(MESSAGE, message);
         varMap.insert(BUDGET, budgetAlloc[i]);
+
+        if (origin == m_hostName)
+        {
+            varMap.insert(SIG, GlobalCrypto->sign(message));
+            varMap.insert(PUBKEY, GlobalCrypto->pubKeyVal());
+            varMap.insert(PUBKEY_SIGNERS, GlobalCrypto->keySigList());
+        }
+        else
+        {
+            varMap.insert(SIG, sig);
+            varMap.insert(PUBKEY, GlobalCrypto->pubKeyVal(origin));
+            varMap.insert(PUBKEY_SIGNERS, GlobalCrypto->keySigList(origin));
+        }
 
         int j = rand() % neighbors.count();
         AddrInfo addrInfo = neighbors[j];
